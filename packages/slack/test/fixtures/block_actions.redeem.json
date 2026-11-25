@@ -1,0 +1,41 @@
+{
+  "type": "block_actions",
+  "user": {
+    "id": "U0ANA00001",
+    "username": "ana",
+    "name": "ana",
+    "team_id": "T0PROPI001"
+  },
+  "api_app_id": "A0PROPI001",
+  "token": "synthetic-verification-token",
+  "container": {
+    "type": "view",
+    "view_id": "V0HOME0001"
+  },
+  "trigger_id": "1000.3000.synthetic3",
+  "team": {
+    "id": "T0PROPI001",
+    "domain": "synthetic"
+  },
+  "enterprise": null,
+  "is_enterprise_install": false,
+  "view": {
+    "id": "V0HOME0001",
+    "type": "home"
+  },
+  "actions": [
+    {
+      "action_id": "propi_redeem",
+      "block_id": "Syn2",
+      "text": {
+        "type": "plain_text",
+        "text": "Redeem",
+        "emoji": true
+      },
+      "value": "reward-mug",
+      "style": "primary",
+      "type": "button",
+      "action_ts": "1764083600.001100"
+    }
+  ]
+}

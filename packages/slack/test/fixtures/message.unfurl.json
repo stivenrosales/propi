@@ -1,0 +1,48 @@
+{
+  "token": "synthetic-verification-token",
+  "team_id": "T0PROPI001",
+  "context_team_id": "T0PROPI001",
+  "context_enterprise_id": null,
+  "api_app_id": "A0PROPI001",
+  "event": {
+    "type": "message",
+    "subtype": "message_changed",
+    "message": {
+      "type": "message",
+      "user": "U0GIVER001",
+      "text": "<@U0ANA00001> :taco: https://example.com",
+      "ts": "1764082800.000100",
+      "attachments": [
+        {
+          "id": 1,
+          "title": "Example"
+        }
+      ]
+    },
+    "previous_message": {
+      "type": "message",
+      "user": "U0GIVER001",
+      "text": "<@U0ANA00001> :taco: https://example.com",
+      "ts": "1764082800.000100"
+    },
+    "channel": "C0GENERAL1",
+    "hidden": true,
+    "ts": "1764082901.000300",
+    "event_ts": "1764082901.000300",
+    "channel_type": "channel"
+  },
+  "type": "event_callback",
+  "event_id": "Ev0SYNTH0010",
+  "event_time": 1764082800,
+  "authorizations": [
+    {
+      "enterprise_id": null,
+      "team_id": "T0PROPI001",
+      "user_id": "U0PROPIBOT",
+      "is_bot": true,
+      "is_enterprise_install": false
+    }
+  ],
+  "is_ext_shared_channel": false,
+  "event_context": "4-synthetic-10"
+}

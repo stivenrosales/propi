@@ -1,0 +1,48 @@
+{
+  "token": "synthetic-verification-token",
+  "team_id": "T0PROPI001",
+  "context_team_id": "T0PROPI001",
+  "context_enterprise_id": null,
+  "api_app_id": "A0PROPI001",
+  "event": {
+    "type": "message",
+    "subtype": "message_changed",
+    "message": {
+      "type": "message",
+      "user": "U0GIVER001",
+      "text": "<@U0ANA00001> <@U0DIANA001> gracias por la revisión :taco::taco::taco: #ownership",
+      "edited": {
+        "user": "U0GIVER001",
+        "ts": "1764082900.000000"
+      },
+      "ts": "1764082800.000100",
+      "source_team": "T0PROPI001",
+      "user_team": "T0PROPI001"
+    },
+    "previous_message": {
+      "type": "message",
+      "user": "U0GIVER001",
+      "text": "<@U0ANA00001> <@U0DIANA001> gracias por la revisión :taco::taco: #ownership",
+      "ts": "1764082800.000100"
+    },
+    "channel": "C0GENERAL1",
+    "hidden": true,
+    "ts": "1764082900.000200",
+    "event_ts": "1764082900.000200",
+    "channel_type": "channel"
+  },
+  "type": "event_callback",
+  "event_id": "Ev0SYNTH0009",
+  "event_time": 1764082800,
+  "authorizations": [
+    {
+      "enterprise_id": null,
+      "team_id": "T0PROPI001",
+      "user_id": "U0PROPIBOT",
+      "is_bot": true,
+      "is_enterprise_install": false
+    }
+  ],
+  "is_ext_shared_channel": false,
+  "event_context": "4-synthetic-9"
+}

@@ -1,0 +1,44 @@
+{
+  "type": "block_actions",
+  "user": {
+    "id": "U0BOSS0001",
+    "username": "boss",
+    "name": "boss",
+    "team_id": "T0PROPI001"
+  },
+  "api_app_id": "A0PROPI001",
+  "token": "synthetic-verification-token",
+  "container": {
+    "type": "message",
+    "message_ts": "1764083700.001200",
+    "channel_id": "D0BOSS0001",
+    "is_ephemeral": false
+  },
+  "trigger_id": "1000.4000.synthetic4",
+  "team": {
+    "id": "T0PROPI001",
+    "domain": "synthetic"
+  },
+  "enterprise": null,
+  "is_enterprise_install": false,
+  "channel": {
+    "id": "D0BOSS0001",
+    "name": "directmessage"
+  },
+  "response_url": "https://hooks.slack.com/actions/T0PROPI001/0/synthetic",
+  "actions": [
+    {
+      "action_id": "propi_redemption_approve",
+      "block_id": "Syn3",
+      "text": {
+        "type": "plain_text",
+        "text": "Approve",
+        "emoji": true
+      },
+      "value": "redemption-1",
+      "style": "primary",
+      "type": "button",
+      "action_ts": "1764083800.001300"
+    }
+  ]
+}

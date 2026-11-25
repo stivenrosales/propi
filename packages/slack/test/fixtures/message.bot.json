@@ -1,0 +1,32 @@
+{
+  "token": "synthetic-verification-token",
+  "team_id": "T0PROPI001",
+  "context_team_id": "T0PROPI001",
+  "context_enterprise_id": null,
+  "api_app_id": "A0PROPI001",
+  "event": {
+    "type": "message",
+    "subtype": "bot_message",
+    "text": "<@U0ANA00001> deploy done :taco:",
+    "ts": "1764082805.000600",
+    "username": "deploybot",
+    "bot_id": "B0DEPLOY01",
+    "channel": "C0GENERAL1",
+    "event_ts": "1764082805.000600",
+    "channel_type": "channel"
+  },
+  "type": "event_callback",
+  "event_id": "Ev0SYNTH0006",
+  "event_time": 1764082800,
+  "authorizations": [
+    {
+      "enterprise_id": null,
+      "team_id": "T0PROPI001",
+      "user_id": "U0PROPIBOT",
+      "is_bot": true,
+      "is_enterprise_install": false
+    }
+  ],
+  "is_ext_shared_channel": false,
+  "event_context": "4-synthetic-6"
+}

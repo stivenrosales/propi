@@ -1,0 +1,14 @@
+{
+  "name": "@propi/slack",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@propi/app": "workspace:*",
+    "@propi/core": "workspace:*"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "token": "synthetic-verification-token",
+  "team_id": "T0PROPI001",
+  "context_team_id": "T0PROPI001",
+  "context_enterprise_id": null,
+  "api_app_id": "A0PROPI001",
+  "event": {
+    "user": "U0GIVER001",
+    "type": "message",
+    "ts": "1764082800.000100",
+    "client_msg_id": "00000000-0000-4000-8000-000000000001",
+    "text": "<@U0ANA00001> <@U0DIANA001> gracias por la revisión :taco::taco: #ownership",
+    "team": "T0PROPI001",
+    "blocks": [
+      {
+        "type": "rich_text",
+        "block_id": "Syn1",
+        "elements": [
+          {
+            "type": "rich_text_section",
+            "elements": [
+              {
+                "type": "text",
+                "text": "<@U0ANA00001> <@U0DIANA001> gracias por la revisión :taco::taco: #ownership"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "channel": "C0GENERAL1",
+    "event_ts": "1764082800.000100",
+    "channel_type": "channel"
+  },
+  "type": "event_callback",
+  "event_id": "Ev0SYNTH0001",
+  "event_time": 1764082800,
+  "authorizations": [
+    {
+      "enterprise_id": null,
+      "team_id": "T0PROPI001",
+      "user_id": "U0PROPIBOT",
+      "is_bot": true,
+      "is_enterprise_install": false
+    }
+  ],
+  "is_ext_shared_channel": false,
+  "event_context": "4-synthetic-1"
+}

@@ -1,0 +1,15 @@
+{
+  "token": "synthetic-verification-token",
+  "team_id": "T0PROPI001",
+  "team_domain": "synthetic",
+  "channel_id": "C0GENERAL1",
+  "channel_name": "general",
+  "user_id": "U0GIVER001",
+  "user_name": "giver",
+  "command": "/propi",
+  "text": "sticker st-thanks <@U0ANA00001|ana> for the demo",
+  "api_app_id": "A0PROPI001",
+  "is_enterprise_install": "false",
+  "response_url": "https://hooks.slack.com/commands/T0PROPI001/0/synthetic",
+  "trigger_id": "1000.2000.synthetic2"
+}
