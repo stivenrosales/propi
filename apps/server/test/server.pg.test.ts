@@ -129,11 +129,18 @@ describe.skipIf(!hasDatabase)("server on Postgres", () => {
   test("S28 S48: the App Home shows balance, allowance, leaderboard and the shop; /propi balance answers privately", async () => {
     await handleEvent(d, env("app_home_opened.json"));
     expect(slack.homes).toHaveLength(1);
-    const text = JSON.stringify(slack.homes[0]!.blocks);
-    expect(text).toContain("*You can spend:* :taco: 2 tacos");
-    expect(text).toContain("*Left to give today:* 5 tacos of 5");
-    expect(text).toContain(`1. <@U0ANA00001> · 2`);
-    expect(text).toContain("The shop is empty for now.");
+    // The real balances and both leaderboards (layout of 8214fcf: stat fields, monthly and all-time boards).
+    const texts = (slack.homes[0]!.blocks as { text?: { text?: string }; fields?: { text: string }[]; elements?: { text?: string }[] }[]).flatMap((b) => [
+      ...(b.text?.text === undefined ? [] : [b.text.text]),
+      ...(b.fields ?? []).map((f) => f.text),
+      ...(b.elements ?? []).flatMap((e) => (e.text === undefined ? [] : [e.text])),
+    ]);
+    expect(texts).toContain("*Received*\n:taco: 2");
+    expect(texts).toContain("*You can spend*\n:taco: 2");
+    expect(texts).toContain("*Left to give today*\n5 of 5");
+    expect(texts.find((t) => t.startsWith("*This month*\n"))).toContain(":first_place_medal: <@U0ANA00001> · *2*");
+    expect(texts.find((t) => t.startsWith("*All time*\n"))).toContain(":first_place_medal: <@U0ANA00001> · *2*");
+    expect(texts).toContain("The shop is empty for now.");
     const reply = await handleSlash(d, fixture<SlackSlashCommand>("slash.balance.json"));
     expect(reply.text).toBe("You can spend 2 tacos and give 5 tacos more today.");
   });

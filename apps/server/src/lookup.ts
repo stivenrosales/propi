@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import type { Actor, ChannelKind, IdentityRef, MemberId, Mention, WorkspaceId } from "@propi/app";
 import type { SlackLookup } from "@propi/slack";
 import type { Runtime } from "./runtime.ts";
-import type { SlackApi } from "./slack-api.ts";
+import type { SlackApi, SlackUserInfo } from "./slack-api.ts";
 
 const TTL_MS = 60_000;
 
@@ -36,20 +36,49 @@ export interface ServerLookup extends SlackLookup {
   slackUserOf(ws: WorkspaceId, member: MemberId): Promise<string | null>;
   /** Drops cached workspace and identity data (after install/uninstall). */
   invalidate(): void;
+  /**
+   * S6: a Slack profile arrived (user_change, team_join). Updates the linked member, or provisions a
+   * new human one with it. Bots and deleted unknown users are ignored. Returns the member, if any.
+   */
+  profile(ws: WorkspaceId, team: string, info: SlackUserInfo): Promise<MemberId | null>;
+}
+
+const profileFields = (info: SlackUserInfo) => ({ displayName: info.displayName ?? null, avatarUrl: info.avatarUrl ?? null });
+
+/**
+ * S6 backfill: copies display name and avatar from users.list onto every member linked to a Slack
+ * user of `team`. Unlinked users are not provisioned here; unchanged profiles are not rewritten.
+ */
+export async function syncProfiles(rt: Runtime, slack: SlackApi, ws: WorkspaceId, team: string): Promise<{ readonly updated: number }> {
+  const linked = new Map((await rt.identityStore.list(ws)).filter((i) => i.platform === "slack" && i.tenantId === team).map((i) => [i.userId, i.memberId]));
+  if (linked.size === 0) return { updated: 0 };
+  const current = new Map((await rt.ports.directory.members(ws)).map((r) => [r.id, r]));
+  let updated = 0;
+  for (const info of await slack.usersList()) {
+    const id = linked.get(info.id);
+    if (id === undefined || info.isBot) continue;
+    const next = profileFields(info);
+    const was = current.get(id);
+    if (was === undefined || ((was.displayName ?? null) === next.displayName && (was.avatarUrl ?? null) === next.avatarUrl)) continue;
+    await rt.admin.setMemberProfile(ws, id, next);
+    updated++;
+  }
+  return { updated };
 }
 
 export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: string, data?: unknown) => void = () => undefined): ServerLookup {
   const workspaces = ttlCache<WorkspaceId | null>();
-  const users = ttlCache<{ isBot: boolean; deleted: boolean } | null>(10 * TTL_MS);
+  const users = ttlCache<SlackUserInfo | null>(10 * TTL_MS);
   const channels = ttlCache<ChannelKind>(10 * TTL_MS);
   const groups = ttlCache<readonly string[]>(5 * TTL_MS);
   const reverse = ttlCache<ReadonlyMap<MemberId, string>>();
   const ref = (team: string, user: string): IdentityRef => ({ platform: "slack", tenantId: team, userId: user });
 
-  async function provision(ws: WorkspaceId, team: string, user: string): Promise<MemberId | null> {
+  async function provision(ws: WorkspaceId, team: string, info: SlackUserInfo): Promise<MemberId | null> {
+    const user = info.id;
     const memberId = provisionedMemberId(ws, team, user);
     if ((await rt.ports.directory.member(ws, memberId)) === null) {
-      await rt.admin.addMember(ws, { id: memberId, role: "member", active: true, dailyLimitOverride: null });
+      await rt.admin.addMember(ws, { id: memberId, role: "member", active: true, dailyLimitOverride: null, ...profileFields(info) });
     }
     try {
       const linked = await rt.identities.link({ actor: { kind: "system", job: "slack-provision" }, workspaceId: ws, identity: ref(team, user), memberId });
@@ -75,7 +104,7 @@ export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: strin
     if (info === null) return null;
     if (info.isBot) return { kind: "bot" };
     if (info.deleted) return null;
-    const id = await provision(ws, team, user);
+    const id = await provision(ws, team, info);
     return id === null ? null : { kind: "member", id };
   }
 
@@ -130,6 +159,19 @@ export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: strin
     invalidate() {
       workspaces.clear();
       reverse.clear();
+    },
+    async profile(ws, team, info) {
+      if (info.isBot) return null;
+      users.delete(info.id);
+      const linked = await rt.identities.resolve(ws, ref(team, info.id));
+      if (linked !== null) {
+        await rt.admin.setMemberProfile(ws, linked, profileFields(info));
+        return linked;
+      }
+      if (info.deleted) return null;
+      const id = await provision(ws, team, info);
+      if (id !== null) await rt.admin.setMemberProfile(ws, id, profileFields(info));
+      return id;
     },
   };
 }

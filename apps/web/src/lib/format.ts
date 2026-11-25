@@ -1,13 +1,25 @@
 // Presentation helpers. No business rules: amounts, states and permissions come from core.
 
 /**
- * Members carry no display name in the domain yet, so the UI derives a label from the member id:
+ * The fallback label when a member has no stored display name (S6), derived from the member id:
  * slug-like ids ("ana-torres") become "Ana Torres"; opaque ids (UUIDs) become "Member 3f1c0a".
  */
 export function memberLabel(id: string): string {
   const slug = id.replace(/^m[_-]/, "");
   if (/^[a-z]+([._-][a-z]+)*$/i.test(slug)) return slug.split(/[._-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   return `Member ${id.replace(/-/g, "").slice(-6)}`;
+}
+
+/** S6: labels and avatars from stored chat profiles, falling back to memberLabel for the rest. */
+export function memberDirectory(members: readonly { readonly id: string; readonly displayName?: string | null; readonly avatarUrl?: string | null }[]): {
+  label(id: string | null | undefined): string;
+  avatar(id: string | null | undefined): string | null;
+} {
+  const byId = new Map(members.map((m) => [m.id, m]));
+  return {
+    label: (id) => (id ? byId.get(id)?.displayName || memberLabel(id) : "Someone"),
+    avatar: (id) => (id ? byId.get(id)?.avatarUrl || null : null),
+  };
 }
 
 /** Gift text as people read it: Slack-style `<@member>` mentions become "@Name". */

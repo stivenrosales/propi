@@ -7,6 +7,15 @@ export interface MemberRecord {
   readonly role: Role;
   readonly active: boolean; // S7
   readonly dailyLimitOverride: PosInt | null; // S25
+  /** Presentation only (S6): the chat profile's display name and avatar, when known. */
+  readonly displayName?: string | null;
+  readonly avatarUrl?: string | null;
+}
+
+/** S6: the chat profile a member shows as. */
+export interface MemberProfile {
+  readonly displayName: string | null;
+  readonly avatarUrl: string | null;
 }
 
 /** S5: whoever installs the app becomes the first admin. */

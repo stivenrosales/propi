@@ -55,6 +55,9 @@ model Member {
   active             Boolean  @default(true)
   dailyLimitOverride Int?     @map("daily_limit_override")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// S6: copied from the member's Slack profile.
+  displayName        String?  @map("display_name")
+  avatarUrl          String?  @map("avatar_url")
 
   workspace   Workspace                @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   identities  Identity[]

@@ -36,7 +36,7 @@ export function createBoltApp(config: { readonly slack: SlackConfig; readonly po
     const ms = Date.now() - started;
     if (ms > 1500) d.log("slow event", { ms, type: out.type ?? out.reason ?? "unknown" });
   };
-  for (const name of ["message", "reaction_added", "reaction_removed", "app_home_opened", "app_uninstalled", "tokens_revoked"] as const) app.event(name, onEvent);
+  for (const name of ["message", "reaction_added", "reaction_removed", "app_home_opened", "app_uninstalled", "tokens_revoked", "user_change", "team_join"] as const) app.event(name, onEvent);
 
   app.command("/propi", async ({ ack, command }) => {
     const reply = await handleSlash(d, command as unknown as SlackSlashCommand);

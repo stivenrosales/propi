@@ -22,7 +22,7 @@ import {
 } from "@propi/slack";
 import type { ServerLookup } from "./lookup.ts";
 import type { Runtime } from "./runtime.ts";
-import type { SlackApi } from "./slack-api.ts";
+import { profileOf, type SlackApi, type SlackUserObject } from "./slack-api.ts";
 
 export type Log = (msg: string, data?: Record<string, unknown>) => void;
 
@@ -70,6 +70,15 @@ export async function handleEvent(d: InboundDeps, body: SlackEnvelope): Promise<
   if (type === "app_home_opened") {
     const ev = body.event as { user: string; tab?: string };
     if (ev.tab === "home") await publishHome(d, body.team_id, ev.user);
+    return { handled: "lifecycle", type };
+  }
+  if (type === "user_change" || type === "team_join") {
+    // S6: keep the member's display name and avatar in step with Slack.
+    const ws = await d.lookup.workspace(body.team_id);
+    const u = (body.event as { user?: SlackUserObject & { id?: string; is_bot?: boolean; deleted?: boolean } }).user;
+    if (ws !== null && u?.id !== undefined) {
+      await d.lookup.profile(ws, body.team_id, { id: u.id, isBot: u.is_bot === true || u.id === "USLACKBOT", deleted: u.deleted === true, ...profileOf(u) });
+    }
     return { handled: "lifecycle", type };
   }
   const t = await translateEvent(d.lookup, body);

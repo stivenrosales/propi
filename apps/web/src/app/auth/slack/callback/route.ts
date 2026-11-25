@@ -41,6 +41,14 @@ export async function GET(req: NextRequest) {
     result.user,
   );
   if (!signin.ok) return back(signin.error);
+  // S6: every viewer sees this member by their Slack name and picture, not just this session. Fills
+  // only what is missing: the bot's users.info sync (display_name first) stays authoritative.
+  const known = await p.ports.directory.member(signin.workspaceId, signin.memberId);
+  const profile = { displayName: known?.displayName || result.user.name, avatarUrl: known?.avatarUrl || result.user.picture };
+  if (profile.displayName !== (known?.displayName ?? null) || profile.avatarUrl !== (known?.avatarUrl ?? null)) {
+    // A failed profile write never blocks sign-in.
+    await p.admin.setMemberProfile(signin.workspaceId, signin.memberId, profile).catch(() => undefined);
+  }
 
   const { value } = createSession(sessionSecret(), { ws: signin.workspaceId, member: signin.memberId, name: result.user.name, picture: result.user.picture, via: "slack" });
   const res = NextResponse.redirect(`${appUrl()}/app`);

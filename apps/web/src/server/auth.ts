@@ -45,5 +45,11 @@ export async function actionViewer(need: Need = "member"): Promise<Viewer> {
 /** What the app frame shows about the viewer. */
 export async function shellViewer(viewer: Viewer): Promise<{ memberId: string; role: Role; label: string; picture: string | null }> {
   const { memberLabel } = await import("@/lib/format");
-  return { memberId: viewer.memberId, role: viewer.role, label: viewer.session.name ?? memberLabel(viewer.memberId), picture: viewer.session.picture };
+  const record = await propi().ports.directory.member(viewer.ws, viewer.memberId);
+  return {
+    memberId: viewer.memberId,
+    role: viewer.role,
+    label: record?.displayName || viewer.session.name || memberLabel(viewer.memberId),
+    picture: record?.avatarUrl || viewer.session.picture,
+  };
 }

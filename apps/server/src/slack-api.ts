@@ -8,11 +8,36 @@ export interface SlackUserInfo {
   readonly id: string;
   readonly isBot: boolean;
   readonly deleted: boolean;
+  /** S6: the profile the member shows as; absent when Slack sent none. */
+  readonly displayName?: string | null;
+  readonly avatarUrl?: string | null;
 }
+
+/** The Slack user fields profileOf reads (users.info, users.list, user_change, team_join). */
+export interface SlackUserObject {
+  readonly name?: string;
+  readonly real_name?: string;
+  readonly profile?: { readonly display_name?: string; readonly real_name?: string; readonly image_192?: string; readonly image_72?: string };
+}
+
+const nonEmpty = (s: string | undefined): string | null => (s !== undefined && s.trim() !== "" ? s.trim() : null);
+
+/** S6: display_name, then real_name, then the handle; avatar image_192, then image_72. */
+export function profileOf(u: SlackUserObject): { readonly displayName: string | null; readonly avatarUrl: string | null } {
+  const p = u.profile ?? {};
+  return {
+    displayName: nonEmpty(p.display_name) ?? nonEmpty(p.real_name) ?? nonEmpty(u.real_name) ?? nonEmpty(u.name),
+    avatarUrl: nonEmpty(p.image_192) ?? nonEmpty(p.image_72),
+  };
+}
+
+const isBotUser = (id: string, u: { readonly is_bot?: boolean }) => u.is_bot === true || id === "USLACKBOT";
 
 export interface SlackApi {
   authTest(): Promise<{ readonly teamId: string; readonly botUserId: string }>;
   userInfo(user: string): Promise<SlackUserInfo | null>;
+  /** S6: every user of the workspace (users.list, paginated). */
+  usersList(): Promise<readonly SlackUserInfo[]>;
   usergroupUsers(group: string): Promise<readonly string[]>;
   /** The message at `ts` in `channel` (top-level or in a thread). */
   message(channel: string, ts: string): Promise<{ readonly user: string | null; readonly botId: string | null; readonly text: string } | null>;
@@ -46,11 +71,24 @@ export function webSlackApi(client: WebClient): SlackApi {
         const r = await client.users.info({ user });
         const u = r.user;
         if (u === undefined) return null;
-        return { id: user, isBot: u.is_bot === true || user === "USLACKBOT", deleted: u.deleted === true };
+        return { id: user, isBot: isBotUser(user, u), deleted: u.deleted === true, ...profileOf(u) };
       } catch (err) {
         if (isPermanentSlackError(err)) return null;
         throw err;
       }
+    },
+    async usersList() {
+      const out: SlackUserInfo[] = [];
+      let cursor: string | undefined;
+      do {
+        const r = await client.users.list({ limit: 200, ...(cursor === undefined ? {} : { cursor }) });
+        for (const u of r.members ?? []) {
+          if (u.id === undefined) continue;
+          out.push({ id: u.id, isBot: isBotUser(u.id, u), deleted: u.deleted === true, ...profileOf(u) });
+        }
+        cursor = r.response_metadata?.next_cursor || undefined;
+      } while (cursor !== undefined);
+      return out;
     },
     async usergroupUsers(usergroup) {
       const r = await client.usergroups.users.list({ usergroup });

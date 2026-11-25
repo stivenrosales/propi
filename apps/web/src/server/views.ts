@@ -2,20 +2,22 @@
 import { localDate, signedAmount, type Instant, type LedgerEntry, type MemberId, type MemberRecord, type WorkspaceId, type WorkspaceSettings } from "@propi/core";
 import { collabProgress } from "@propi/app";
 import { DEFAULT_LEVEL_CONFIG, levelOf, type LevelConfig } from "@propi/core/levels";
-import { memberLabel } from "@/lib/format";
+import { memberDirectory } from "@/lib/format";
 import { propi } from "./propi";
 
 export interface WorkspaceView {
   readonly settings: WorkspaceSettings;
   readonly members: readonly MemberRecord[];
-  /** Display label per member id. */
+  /** Display label per member id: the stored Slack display name, else the id-derived label (S6). */
   label(id: string | null | undefined): string;
+  /** The stored Slack avatar URL, or null (S6). */
+  avatar(id: string | null | undefined): string | null;
 }
 
 export async function workspaceView(ws: WorkspaceId): Promise<WorkspaceView> {
   const p = propi();
   const [settings, members] = await Promise.all([p.ports.directory.settings(ws), p.ports.directory.members(ws)]);
-  return { settings, members, label: (id) => (id ? memberLabel(id) : "Someone") };
+  return { settings, members, ...memberDirectory(members) };
 }
 
 export async function levelsConfig(ws: WorkspaceId): Promise<LevelConfig> {

@@ -12,12 +12,23 @@ export interface Posted {
   readonly blocks: readonly unknown[];
 }
 
-export function fakeSlack(opts: { readonly teamId?: string; readonly bots?: readonly string[]; readonly messages?: Record<string, { user: string | null; botId: string | null; text: string }> } = {}) {
+type FakeProfile = { readonly displayName: string | null; readonly avatarUrl: string | null };
+
+export function fakeSlack(
+  opts: {
+    readonly teamId?: string;
+    readonly bots?: readonly string[];
+    readonly messages?: Record<string, { user: string | null; botId: string | null; text: string }>;
+    /** S6: Slack profiles by user id; users.list returns exactly these. */
+    readonly profiles?: Record<string, FakeProfile>;
+  } = {},
+) {
   const posted: Posted[] = [];
   const homes: { user: string; blocks: readonly unknown[] }[] = [];
   const api: SlackApi = {
     authTest: async () => ({ teamId: opts.teamId ?? "T0PROPI001", botUserId: "U0PROPIBOT" }),
-    userInfo: async (id): Promise<SlackUserInfo | null> => ({ id, isBot: opts.bots?.includes(id) ?? false, deleted: false }),
+    userInfo: async (id): Promise<SlackUserInfo | null> => ({ id, isBot: opts.bots?.includes(id) ?? false, deleted: false, ...opts.profiles?.[id] }),
+    usersList: async () => Object.entries(opts.profiles ?? {}).map(([id, p]) => ({ id, isBot: opts.bots?.includes(id) ?? false, deleted: false, ...p })),
     usergroupUsers: async () => ["U0ANA00001", "U0BOB00001"],
     message: async (channel, ts) => opts.messages?.[`${channel}:${ts}`] ?? null,
     channelInfo: async (c) => ({ isPrivate: c.startsWith("G"), isIm: c.startsWith("D"), isMpim: false }),

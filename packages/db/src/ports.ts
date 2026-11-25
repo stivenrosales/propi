@@ -31,6 +31,7 @@ import {
   type LocalDate,
   type LockKey,
   type MemberId,
+  type MemberProfile,
   type MemberRecord,
   type Outcome,
   type PosInt,
@@ -428,12 +429,12 @@ export function createDbPorts(prisma: PrismaClient, opts: DbPortsOptions = {}): 
     },
     async member(ws, id) {
       const [row] = await prisma.$queryRaw<MemberRow[]>`
-        SELECT id, role, active, daily_limit_override FROM member WHERE workspace_id = ${ws} AND id = ${id}`;
+        SELECT id, role, active, daily_limit_override, display_name, avatar_url FROM member WHERE workspace_id = ${ws} AND id = ${id}`;
       return row ? toMember(row) : null;
     },
     async members(ws) {
       const rows = await prisma.$queryRaw<MemberRow[]>`
-        SELECT id, role, active, daily_limit_override FROM member WHERE workspace_id = ${ws} ORDER BY id`;
+        SELECT id, role, active, daily_limit_override, display_name, avatar_url FROM member WHERE workspace_id = ${ws} ORDER BY id`;
       return rows.map(toMember);
     },
     async values(ws) {
@@ -460,6 +461,8 @@ interface MemberRow {
   role: Role;
   active: boolean;
   daily_limit_override: number | null;
+  display_name: string | null;
+  avatar_url: string | null;
 }
 
 const toMember = (r: MemberRow): MemberRecord => ({
@@ -467,6 +470,9 @@ const toMember = (r: MemberRow): MemberRecord => ({
   role: r.role,
   active: r.active,
   dailyLimitOverride: r.daily_limit_override as PosInt | null,
+  // S6: present only when known, so records without a profile keep their previous shape.
+  ...(r.display_name === null ? {} : { displayName: r.display_name }),
+  ...(r.avatar_url === null ? {} : { avatarUrl: r.avatar_url }),
 });
 
 // ───────────── Administration (setup, seeding, tests) ─────────────
@@ -487,13 +493,20 @@ export function createDbAdmin(prisma: PrismaClient) {
         await db.$executeRaw`UPDATE workspace SET settings = ${toJson(settingsToJson(next))}::jsonb WHERE id = ${id}`;
       });
     },
-    /** Adds or replaces a member record. */
+    /** Adds or replaces a member record. A profile left out keeps the stored one (S6). */
     async addMember(ws: WorkspaceId, r: MemberRecord): Promise<void> {
       await prisma.$executeRaw`
-        INSERT INTO member (workspace_id, id, role, active, daily_limit_override)
-        VALUES (${ws}, ${r.id}, ${r.role}, ${r.active}, ${r.dailyLimitOverride})
+        INSERT INTO member (workspace_id, id, role, active, daily_limit_override, display_name, avatar_url)
+        VALUES (${ws}, ${r.id}, ${r.role}, ${r.active}, ${r.dailyLimitOverride}, ${r.displayName ?? null}, ${r.avatarUrl ?? null})
         ON CONFLICT (workspace_id, id) DO UPDATE SET
-          role = EXCLUDED.role, active = EXCLUDED.active, daily_limit_override = EXCLUDED.daily_limit_override`;
+          role = EXCLUDED.role, active = EXCLUDED.active, daily_limit_override = EXCLUDED.daily_limit_override,
+          display_name = COALESCE(EXCLUDED.display_name, member.display_name),
+          avatar_url = COALESCE(EXCLUDED.avatar_url, member.avatar_url)`;
+    },
+    /** S6: stores the member's chat display name and avatar. Unknown members are left alone. */
+    async setMemberProfile(ws: WorkspaceId, id: MemberId, p: MemberProfile): Promise<void> {
+      await prisma.$executeRaw`
+        UPDATE member SET display_name = ${p.displayName}, avatar_url = ${p.avatarUrl} WHERE workspace_id = ${ws} AND id = ${id}`;
     },
     /** Replaces the workspace's values, keeping the given order. */
     async setValues(ws: WorkspaceId, values: readonly Value[]): Promise<void> {

@@ -10,7 +10,7 @@ import { ConfigError, describeConfig, loadConfig } from "./config.ts";
 import { healthRoute, startHealthServer, type HealthState } from "./health.ts";
 import { IMPORT_USAGE, ImportUsageError, importIntoWorkspace, parseImportArgs } from "./import.ts";
 import { ensureInstalled } from "./install.ts";
-import { createSlackLookup } from "./lookup.ts";
+import { createSlackLookup, syncProfiles } from "./lookup.ts";
 import { relayOnce, webhookRelay } from "./relay.ts";
 import { createRuntime } from "./runtime.ts";
 import { createScheduler } from "./scheduler.ts";
@@ -115,6 +115,12 @@ async function serve(): Promise<number> {
   const { teamId } = await slack.authTest();
   const install = await ensureInstalled(rt, { teamId, installerUserId: slackConfig.installerUserId, timezone: config.timezone, now: rt.ports.clock.now() });
   log("workspace ready", { created: install.created, reinstalled: install.reinstalled });
+  // S6: one users.list sweep per start fills display names and avatars of members seen before this
+  // existed; user_change keeps them fresh afterwards. In the background: startup never waits on it.
+  void syncProfiles(rt, slack, install.workspaceId, teamId).then(
+    (r) => log("profiles synced", { updated: r.updated }),
+    (e) => log("profile sync failed", { error: errText(e) }),
+  );
   const workspaces = async () => {
     const ws = await lookup.workspace(teamId);
     return ws === null ? [] : [ws];
