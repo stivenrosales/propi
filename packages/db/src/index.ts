@@ -14,3 +14,22 @@ export { MODULE_APPLIERS, createDbEngagementStores, createDbIdentityStore, shopR
 export { GIVEN_KINDS, RECEIVED_KINDS, REDEEMABLE_KINDS, SQL_LISTS, ledgerCheckConstraints } from "./effects-sql.ts";
 export { settingsFromJson, settingsToJson } from "./settings-json.ts";
 export { systemClock, uuidv7, uuidv7Ids } from "./runtime.ts";
+export { createSecretCipher, parseEncryptionKey, secretCipherFromEnv, type SecretCipher } from "./crypto.ts";
+export {
+  createDbApiStores,
+  createDbApiTokenStore,
+  createDbDeliveryStore,
+  createDbOutboxReader,
+  createDbWebhookEndpointStore,
+  endpointSecretContext,
+  type ClaimDueOptions,
+  type ClaimEventsOptions,
+  type DbApiStores,
+  type DbDeliveryStore,
+  type DbOutboxReader,
+  type DbWebhookEndpointStore,
+} from "./api.ts";
+export { createDbInsights, exportRedemptionRow, type DbInsights } from "./insights.ts";
+export { createDbInstallations, installationContext, type BootstrapResult, type DbInstallations, type InstallInput, type StoredInstallation } from "./install.ts";
+export { readGifts } from "./ports.ts";
+export { safeNumber } from "./numbers.ts";

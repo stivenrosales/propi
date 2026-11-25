@@ -53,6 +53,7 @@ import {
   type WorkspaceId,
 } from "@propi/core";
 import { Prisma, type PrismaClient } from "./client.ts";
+import { safeNumber } from "./numbers.ts";
 import { toJson } from "./settings-json.ts";
 
 type Sql = Prisma.TransactionClient;
@@ -154,11 +155,11 @@ export function shopReader(db: Sql, ws: WorkspaceId, giftCards: GiftCardProvider
 
     // S56: spend adds, refund removes; members appear in first-contribution order.
     async contributions(id) {
-      const rows = await db.$queryRaw<{ member_id: string; net: number }[]>`
-        SELECT member_id, (-SUM(amount))::int AS net FROM ledger_entry
+      const rows = await db.$queryRaw<{ member_id: string; net: bigint }[]>`
+        SELECT member_id, (-SUM(amount))::bigint AS net FROM ledger_entry
         WHERE workspace_id = ${ws} AND cause_type = 'contribution' AND cause_id = ${id}
         GROUP BY member_id ORDER BY MIN(seq)`;
-      return new Map(rows.map((r) => [r.member_id as MemberId, r.net]));
+      return new Map(rows.map((r) => [r.member_id as MemberId, safeNumber(r.net)]));
     },
   };
 }

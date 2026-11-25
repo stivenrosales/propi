@@ -47,6 +47,7 @@ import {
 import { Prisma, type PrismaClient } from "./client.ts";
 import { SQL_LISTS } from "./effects-sql.ts";
 import { MODULE_APPLIERS, activeUnit, shopReader } from "./modules.ts";
+import { safeNumber } from "./numbers.ts";
 import { systemClock, uuidv7, uuidv7Ids } from "./runtime.ts";
 import { settingsFromJson, settingsToJson, toJson } from "./settings-json.ts";
 
@@ -190,10 +191,16 @@ function causeId(c: Cause): string | null {
 
 // ───────────── Readers ─────────────
 
+/** Every gift header of a workspace, in creation order. */
+export async function readGifts(db: Sql, ws: WorkspaceId): Promise<Gift[]> {
+  const rows = await db.$queryRaw<GiftRow[]>`${GIFT_SELECT} WHERE g.workspace_id = ${ws} ORDER BY g.seq`;
+  return rows.map(toGift);
+}
+
 function ledgerReader(db: Sql, ws: WorkspaceId): WorkspaceReader {
   const int = async (q: Prisma.Sql): Promise<number> => {
-    const [row] = await db.$queryRaw<{ n: number }[]>(q);
-    return row?.n ?? 0;
+    const [row] = await db.$queryRaw<{ n: bigint | number }[]>(q);
+    return safeNumber(row?.n);
   };
   const reactionGiftIds = (giver: MemberId, messageRef: string, emoji: string) => Prisma.sql`
     SELECT id FROM gift WHERE workspace_id = ${ws} AND source = 'reaction'
@@ -201,27 +208,27 @@ function ledgerReader(db: Sql, ws: WorkspaceId): WorkspaceReader {
 
   return {
     async balances(member): Promise<Balances> {
-      const [row] = await db.$queryRaw<Balances[]>`
+      const [row] = await db.$queryRaw<{ received: bigint; given: bigint; redeemable: bigint }[]>`
         SELECT
-          COALESCE(SUM(amount) FILTER (WHERE member_id = ${member} AND kind IN (${GIFT_KINDS})), 0)::int AS received,
-          COALESCE(SUM(amount) FILTER (WHERE counterpart_id = ${member} AND kind IN (${GIVEN_KINDS})), 0)::int AS given,
-          COALESCE(SUM(amount) FILTER (WHERE member_id = ${member} AND kind IN (${REDEEMABLE_KINDS})), 0)::int AS redeemable
+          COALESCE(SUM(amount) FILTER (WHERE member_id = ${member} AND kind IN (${GIFT_KINDS})), 0)::bigint AS received,
+          COALESCE(SUM(amount) FILTER (WHERE counterpart_id = ${member} AND kind IN (${GIVEN_KINDS})), 0)::bigint AS given,
+          COALESCE(SUM(amount) FILTER (WHERE member_id = ${member} AND kind IN (${REDEEMABLE_KINDS})), 0)::bigint AS redeemable
         FROM ledger_entry
         WHERE workspace_id = ${ws} AND (member_id = ${member} OR counterpart_id = ${member})`;
-      return { received: row?.received ?? 0, given: row?.given ?? 0, redeemable: row?.redeemable ?? 0 };
+      return { received: safeNumber(row?.received), given: safeNumber(row?.given), redeemable: safeNumber(row?.redeemable) };
     },
 
     allowanceUsed: (giver, day) =>
       int(Prisma.sql`
-        SELECT COALESCE(SUM(amount), 0)::int AS n FROM ledger_entry
+        SELECT COALESCE(SUM(amount), 0)::bigint AS n FROM ledger_entry
         WHERE workspace_id = ${ws} AND counterpart_id = ${giver} AND allowance_day = ${day}::date AND kind IN (${GIVEN_KINDS})`),
 
     async netPerReceiver(gift) {
-      const rows = await db.$queryRaw<{ member_id: string; net: number }[]>`
-        SELECT member_id, SUM(amount)::int AS net FROM ledger_entry
+      const rows = await db.$queryRaw<{ member_id: string; net: bigint }[]>`
+        SELECT member_id, SUM(amount)::bigint AS net FROM ledger_entry
         WHERE workspace_id = ${ws} AND cause_type = 'gift' AND cause_id = ${gift} AND kind IN (${GIFT_KINDS})
         GROUP BY member_id ORDER BY MIN(seq)`;
-      return new Map(rows.map((r) => [r.member_id as MemberId, r.net]));
+      return new Map(rows.map((r) => [r.member_id as MemberId, safeNumber(r.net)]));
     },
 
     async gift(id) {
@@ -263,11 +270,11 @@ function ledgerReader(db: Sql, ws: WorkspaceId): WorkspaceReader {
           AND allowance_day = ${day}::date AND reason = 'reaction_removed'`),
 
     async redeemableByMember() {
-      const rows = await db.$queryRaw<{ member_id: string; n: number }[]>`
-        SELECT member_id, SUM(amount)::int AS n FROM ledger_entry
+      const rows = await db.$queryRaw<{ member_id: string; n: bigint }[]>`
+        SELECT member_id, SUM(amount)::bigint AS n FROM ledger_entry
         WHERE workspace_id = ${ws} AND kind IN (${REDEEMABLE_KINDS})
         GROUP BY member_id ORDER BY member_id`;
-      return new Map(rows.map((r) => [r.member_id as MemberId, r.n]));
+      return new Map(rows.map((r) => [r.member_id as MemberId, safeNumber(r.n)]));
     },
 
     async entries() {
@@ -533,10 +540,7 @@ export function createDbInspector(prisma: PrismaClient) {
         event: r.payload,
       }));
     },
-    async gifts(ws: WorkspaceId): Promise<Gift[]> {
-      const rows = await prisma.$queryRaw<GiftRow[]>`${GIFT_SELECT} WHERE g.workspace_id = ${ws} ORDER BY g.seq`;
-      return rows.map(toGift);
-    },
+    gifts: (ws: WorkspaceId): Promise<Gift[]> => readGifts(prisma, ws),
   };
 }
 

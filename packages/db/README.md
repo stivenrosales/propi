@@ -23,6 +23,21 @@ The Postgres adapter: Prisma schema, hand-written SQL migrations, and the `@prop
   `member_avatar`, `milestone_profile`, `pairing_*`). Engagement stores read through the running
   unit's transaction while one is active, so a locked unit never needs a second pool connection.
 
+- **API and webhooks** (migration `20261125030000_api_insights_install`, `src/api.ts`): `api_token`
+  stores only the SHA-256 of a token and never un-revokes (S98). `webhook_endpoint.secret_enc` is
+  AES-256-GCM under `ENCRYPTION_KEY` (`src/crypto.ts`), bound to its row. `domain_event.public_id`
+  is generated as core's `webhookEventId` (S99) and `delivery.event_id` references it.
+  `outbox.claimEvents(consumer, handle)` claims unhandled events with `FOR NO KEY UPDATE SKIP LOCKED`
+  and writes `outbox_receipt` rows in the same transaction; `deliveries.claimDue(now)` leases due
+  deliveries with `SKIP LOCKED`, so two relays never send the same attempt.
+- **Insights** (`src/insights.ts`): `createDbInsights(prisma).source` is core's `InsightsSource`, so
+  app's board/notify/insights/privacy queries run unchanged; `leaderboard` and `valuesReport` answer
+  S80-S82 and S43 in SQL. Insights settings live in `module_config` (`insights`), preferences in
+  `notification_preference`. Ledger sums are `BIGINT` in SQL and checked by `safeNumber`.
+- **Installs** (`src/install.ts`): `bootstrap` creates workspace + first admin + identity from a
+  platform install (S5), idempotent per (platform, tenant) under an advisory lock; the installation
+  (bot token) is stored encrypted; `markUninstalled` keeps all data (S72).
+
 ## Commands
 
 ```sh
@@ -50,6 +65,11 @@ const app = createApp(ports, {
   handlers: engagementHandlers({ reader: ports.reader, directory: ports.directory, ...createDbEngagementStores(prisma) }),
 });
 const identities = createDbIdentityStore(prisma); // S107
+
+const cipher = secretCipherFromEnv(); // ENCRYPTION_KEY
+const api = createDbApiStores(prisma, { cipher }); // tokens, endpoints, deliveries, outbox (S98, S99)
+const insights = createDbInsights(prisma); // InsightsSource + SQL leaderboards (S80-S91)
+const installs = createDbInstallations(prisma, { cipher }); // S5 bootstrap, S72
 ```
 
 ## Adding tables
@@ -60,3 +80,6 @@ Add a new migration folder under `prisma/migrations/` with hand-written SQL, mir
 ```sh
 pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script
 ```
+
+The only expected difference is `domain_event.public_id`: it is a generated column, which Prisma
+cannot model, so the diff proposes `ALTER COLUMN "public_id" DROP DEFAULT`. Ignore that line.
