@@ -90,14 +90,16 @@ export async function uninstall(d: Pick<InboundDeps, "rt" | "lookup" | "log">, t
 export async function homeFor(d: InboundDeps, ws: WorkspaceId, actor: Extract<Actor, { kind: "member" }>) {
   const ctx = await renderContext(d, ws);
   const shop = asShop(d.rt.ports.reader.workspace(ws));
-  const [balances, allowance, board, rewards, level] = await Promise.all([
+  const [balances, allowance, month, allTime, rewards, level] = await Promise.all([
     d.rt.app.balances(ws, actor.memberId),
     d.rt.app.allowance(ws, actor.memberId),
     d.rt.boards.leaderboard(ws, actor, { board: "received", timeframe: { kind: "month" }, limit: 10 }),
+    d.rt.boards.leaderboard(ws, actor, { board: "received", timeframe: { kind: "all" }, limit: 10 }),
     rewardCatalog(shop, actor),
     memberLevel({ reader: d.rt.ports.reader, levels: d.rt.engagement.levels }, ws, actor.memberId),
   ]);
-  return homeView({ balances, allowance, leaderboard: board.ok ? board.value : null, rewards, level }, ctx);
+  const leaderboard = month.ok && allTime.ok ? { month: month.value, allTime: allTime.value } : null;
+  return homeView({ balances, allowance, leaderboard, rewards, level }, ctx);
 }
 
 export async function publishHome(d: InboundDeps, team: string, user: string): Promise<void> {

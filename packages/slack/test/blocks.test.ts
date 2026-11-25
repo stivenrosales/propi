@@ -76,8 +76,27 @@ describe("shop and App Home", () => {
       ctx,
     );
     expect(view.type).toBe("home");
-    expect(JSON.stringify(view.blocks)).toContain("*You can spend:* :taco: 3 tacos\\n*Left to give today:* 4 tacos of 5");
-    expect(JSON.stringify(view.blocks)).not.toContain("This month");
+    const json = JSON.stringify(view.blocks);
+    expect(json).toContain("*You can spend*\\n:taco: 3");
+    expect(json).toContain("*Left to give today*\\n4 of 5");
+    expect(json).not.toContain("Leaderboard");
+  });
+
+  test("S80: the App Home shows this month's and all-time leaderboards with medals", () => {
+    const row = (id: string, rank: number, score: number) => ({ memberId: m(id), rank, score }) as never;
+    const view = homeView(
+      {
+        balances: { received: 4, given: 1, redeemable: 3 },
+        allowance: { day: "2026-11-25" as never, limit: 5, used: 1, remaining: 4 },
+        leaderboard: { month: [row("ana", 1, 12)], allTime: [row("ana", 1, 1111), row("bo", 2, 811)] },
+        rewards: [],
+        level: null,
+      },
+      ctx,
+    );
+    const json = JSON.stringify(view.blocks);
+    expect(json).toContain("*This month*\\n:first_place_medal: <@U0ANA00001> · *12*");
+    expect(json).toContain("*All time*\\n:first_place_medal: <@U0ANA00001> · *1,111*\\n:second_place_medal: a teammate · *811*");
   });
 
   test("S6: an approval request has Approve and Reject buttons bound to the redemption", () => {

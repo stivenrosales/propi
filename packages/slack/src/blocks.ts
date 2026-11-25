@@ -262,27 +262,55 @@ export function shopMessage(rewards: readonly Reward[], redeemable: number, ctx:
 export interface HomeData {
   readonly balances: Balances;
   readonly allowance: AllowanceView;
-  /** S80: this month's leaderboard, or null when giver mode hides it from the viewer (S81). */
-  readonly leaderboard: readonly LeaderboardRow[] | null;
+  /** S80: leaderboards by received, or null when giver mode hides them from the viewer (S81). */
+  readonly leaderboard: { readonly month: readonly LeaderboardRow[]; readonly allTime: readonly LeaderboardRow[] } | null;
   readonly rewards: readonly Reward[];
   readonly level: { readonly level: number; readonly title: string } | null;
 }
 
+const MEDALS = [":first_place_medal:", ":second_place_medal:", ":third_place_medal:"];
+
+function boardText(rows: readonly LeaderboardRow[], ctx: RenderContext): string {
+  if (rows.length === 0) return `_No ${ctx.currency.plural} yet._`;
+  return rows.map((r) => `${MEDALS[r.rank - 1] ?? `${r.rank}.`} ${ctx.who(r.memberId)} · *${r.score.toLocaleString("en-US")}*`).join("\n");
+}
+
 /** S28, S48: the App Home tab. */
 export function homeView(d: HomeData, ctx: RenderContext): HomeView {
+  const c = ctx.currency;
+  const plural = c.plural.charAt(0).toUpperCase() + c.plural.slice(1);
   const blocks: Block[] = [
-    header("Propi"),
-    md(`*You can spend:* ${units(ctx, d.balances.redeemable)}\n*Left to give today:* ${formatUnits(ctx.currency, d.allowance.remaining)} of ${d.allowance.limit}`),
-    context(`Received ${d.balances.received} · Given ${d.balances.given}${d.level === null ? "" : ` · Level ${d.level.level}: ${escapeText(d.level.title)}`}`),
-    divider,
+    header(`${c.primaryEmoji} Your ${c.plural}`),
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Received*\n${c.primaryEmoji} ${d.balances.received.toLocaleString("en-US")}` },
+        { type: "mrkdwn", text: `*Given*\n${c.primaryEmoji} ${d.balances.given.toLocaleString("en-US")}` },
+        { type: "mrkdwn", text: `*You can spend*\n${c.primaryEmoji} ${d.balances.redeemable.toLocaleString("en-US")}` },
+        { type: "mrkdwn", text: `*Left to give today*\n${d.allowance.remaining} of ${d.allowance.limit}` },
+      ],
+    },
   ];
+  if (d.level !== null) blocks.push(context(`:star: Level ${d.level.level} · ${escapeText(d.level.title)}`));
+  if (ctx.appUrl !== null) blocks.push(context(`<${ctx.appUrl}/app|Open your dashboard> · <${ctx.appUrl}/app/shop|${plural} shop>`));
+  blocks.push(divider);
   if (d.leaderboard !== null) {
-    blocks.push(header("This month"));
-    blocks.push(md(d.leaderboard.length === 0 ? `No ${ctx.currency.plural} yet this month.` : d.leaderboard.map((r) => `${r.rank}. ${ctx.who(r.memberId)} · ${r.score}`).join("\n")));
+    blocks.push(header(":trophy: Leaderboard"));
+    blocks.push({
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*This month*\n${boardText(d.leaderboard.month, ctx)}` },
+        { type: "mrkdwn", text: `*All time*\n${boardText(d.leaderboard.allTime, ctx)}` },
+      ],
+    });
     blocks.push(divider);
   }
-  blocks.push(header("Shop"));
-  blocks.push(...shopBlocks(d.rewards, d.balances.redeemable, ctx));
-  if (ctx.appUrl !== null) blocks.push(context(`<${ctx.appUrl}|Open Propi on the web>`));
+  blocks.push(header(":shopping_bags: Shop"));
+  blocks.push(context(`You can spend ${units(ctx, d.balances.redeemable)}`));
+  blocks.push(...shopBlocks(d.rewards, d.balances.redeemable, ctx, 6));
+  blocks.push(divider);
+  blocks.push(
+    md(`*How to give:* mention someone and add ${c.primaryEmoji} with a reason, e.g. \`@ana thanks for the review ${c.primaryEmoji}${c.primaryEmoji}\`, or react with ${c.primaryEmoji}. Type \`/propi help\` for more.`),
+  );
   return { type: "home", blocks: blocks.slice(0, 100) };
 }
