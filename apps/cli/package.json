@@ -1,0 +1,13 @@
+{
+  "name": "@propi/cli",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": { "propi": "./src/main.ts" },
+  "dependencies": {
+    "@propi/app": "workspace:*",
+    "@propi/core": "workspace:*",
+    "@propi/heytaco": "workspace:*"
+  }
+}
