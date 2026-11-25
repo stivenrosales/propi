@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   },
   description: site.description,
   applicationName: site.name,
-  icons: { icon: { url: "/brand/propi-mark.svg", type: "image/svg+xml" } },
+  icons: { icon: { url: "/brand/propi-mascot-icon.png", type: "image/png" } },
   openGraph: {
     type: "website",
     siteName: site.name,
