@@ -23,6 +23,11 @@ Propi lets teammates thank each other in Slack with an emoji (🌮 by default, a
 
 Your Propi runs on your own server, the data never leaves it, and there are no per-seat fees.
 
+<p align="center">
+  <img src="docs/screenshots/member-home.png" alt="Member home: balance, allowance, history and monthly leaderboard" width="49%" />
+  <img src="docs/screenshots/admin-redemptions.png" alt="Admin redemption queue with approve, reject and fulfil" width="49%" />
+</p>
+
 ## Features
 
 - **Give props in Slack.** Write `@ana thanks for the help :taco::taco:` or react with the emoji. You can thank several people at once.
@@ -112,7 +117,8 @@ pnpm --filter @propi/web dev                                    # web app on :30
 
 ## Status
 
-Propi is under active development. The domain, persistence and HeyTaco migration are complete and tested, and the Slack bot and web app are being finished. The first production deployment is a team of about 15 people moving from HeyTaco.
+- **Built and tested.** The domain covers all 109 rules in the spec, Postgres has its concurrency suites, the HeyTaco migration reconciles with 0 diffs, and both the Slack bot and the web app (member area, admin, TV mode, REST API) are done. There are 646 tests, and each phase was checked by an independent verifier.
+- **Running in production** at <https://propi.swnb5v.easypanel.host>. The first team is about 15 people moving from HeyTaco, and the Slack app is being connected.
 
 ## License
 
