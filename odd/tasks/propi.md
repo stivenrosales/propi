@@ -18,7 +18,7 @@
 - **S-LANDING:** "hasta con landing genial, usando el modleo de Kie para elementos y cosas estetias para tener referncias y hacer varios cambios".
 - **S-NAME:** the working name is `Propi`. License: AGPL-3.0.
 - **S-SAFETY:**
-  - No push to GitHub without the user's OK.
+  - GitHub: authorized 2026-11-25 to create a PUBLIC repo `stivenrosales/propi` and push, with a full README (L8). Scan for personal data before every push.
   - The user creates the Slack app and enters the tokens.
   - Installing in Pearson's Slack needs explicit confirmation, and runs in shadow mode first.
   - `data/` stays out of git.
@@ -27,15 +27,15 @@
 
 | ID | Specs | Route | Status | Evidence |
 |---|---|---|---|---|
-| T1 | S-ARCH, S-NAME | inline | in progress | scaffold: git, pnpm monorepo, AGPL, Vitest, CI, compose Postgres |
-| T2 | S-DOMAIN | inline | todo | spec harness: one test file per spec section, starting RED |
-| T3 | S1–S40, S-MIGRATION | inline (TDD) | todo | core: workspace, giving, allowance, ledger, adjustments |
-| T4 | S-ARCH, S-CONCURRENCY | inline | todo | db (Prisma) + app use cases + G5 suite |
-| T5 | S101–S105, S76a | inline | todo | HeyTaco importer + reconciliation |
+| T1 | S-ARCH, S-NAME | inline | done | commits c4a1c21, 22cd7ae + vitest fix; typecheck + 1 smoke test green |
+| T2 | S-DOMAIN | delegated (context backstop) | in progress, workflow propi-foundation | spec harness: one test file per spec section, starting RED |
+| T3 | S1–S40, S-MIGRATION | delegated (context backstop) | in progress | core: workspace, giving, allowance, ledger, adjustments |
+| T4 | S-ARCH, S-CONCURRENCY | delegated (parallel with T5, disjoint surfaces) | in progress | db (Prisma) + app use cases + G5 suite |
+| T5 | S101–S105, S76a | delegated (parallel with T4) | in progress | HeyTaco importer + reconciliation |
 | T6 | S41–S100, S106–S108 | delegated (parallel writers, disjoint core folders) | todo | values, shop, collab, rules, quests, stickers, levels, boards, notify, insights, milestones, pairing, api |
 | T7 | S9–S29, S48, S106 | inline | todo | Slack adapter (Bolt) + fixtures + manifest |
-| T8 | S-LANDING, S44, S80–S88 | delegated | todo | web: landing (Kie refs), admin, shop, dashboards |
-| T9 | S-DEPLOY | inline | todo | Docker image, Easypanel project, migrate, smoke test |
+| T8 | S-LANDING, S44, S80–S88 | delegated (landing in worktree branch feat/landing, parallel) | landing in progress; brand kit done (commit feat(brand)) | web: landing (Kie refs), admin, shop, dashboards |
+| T9 | S-DEPLOY | inline | todo; target: docker stack /opt/propi + traefik file config, host propi.swnb5v.easypanel.host (wildcard DNS + cert verified), same pattern as /opt/mmtp-cobranzas | Docker image, Easypanel project, migrate, smoke test |
 | T10 | all | independent verifier | todo | ledger, concurrency and migration review |
 
 ## Log
@@ -46,3 +46,6 @@
 - **L4 (2026-11-25):** name Propi accepted. AGPL, local commits, autonomous run, and agent orchestration approved.
 - **L5 (2026-11-25):** read-only VPS check of `haiku-vps`: Easypanel + Traefik, 4 cores, ~3.6 GB RAM free, 81 GB disk free.
 - **L6 (2026-11-25):** Kie lives in `~/cartas-sofia/generate.py`, using `KIE_API_KEY` from `.env`. Reading `.env` is denied to the agent, so the user will copy the key into `~/tacos/.env.local`.
+- L7 (2026-11-25): T1 done. Launched workflow propi-foundation (run wf_b1ec12e8-31a): foundation writer, then postgres + importer writers in parallel, then an independent verifier with one bounded correction. Delegated because the parent context passed the ~150k backstop. Writers do not commit; the parent commits by unit.
+- L8 (2026-11-25, user, verbatim): "No, ienss uqe hacerlo todo amigo, hasta lo de easypanel, y subir a githubn, hascer su dreadme y todo, por eso te digo que quiero que lo hagas todo, por eos un goal?"
+- L9 (2026-11-25): GitHub repo https://github.com/stivenrosales/propi created public; main and feat/core pushed after a PII scan. Brand: Kie GPT Image 2.6 Flare, logo A (token) chosen and cropped into 3 SVG variants. Deploy route decided: Easypanel API needs panel credentials, so follow the existing /opt/mmtp-cobranzas pattern (swarm stack + traefik file provider) on the Easypanel wildcard domain.
