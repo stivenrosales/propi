@@ -5,11 +5,10 @@ import type { Instant, MemberId, WorkspaceId } from "@propi/app";
 import { createSecretCipher } from "@propi/db";
 import type { SlackEnvelope } from "@propi/slack";
 import { handleEvent, type InboundDeps } from "../src/inbound.ts";
-import { ensureInstalled } from "../src/install.ts";
 import { createSlackLookup, provisionedMemberId, syncProfiles } from "../src/lookup.ts";
 import { createRuntime, type Runtime } from "../src/runtime.ts";
 import { profileOf } from "../src/slack-api.ts";
-import { fakeSlack } from "./fakes.ts";
+import { fakeSlack, gatewayOf, installTeam } from "./fakes.ts";
 import { createTestDatabase, hasDatabase } from "./pg.ts";
 
 const TEAM = "T0PROPI001";
@@ -37,9 +36,9 @@ beforeAll(async () => {
   db = await createTestDatabase();
   let n = 0;
   rt = createRuntime(db.client, { cipher: createSecretCipher("00".repeat(32)), clock: { now: () => T0 as Instant }, ids: { next: (kind) => `${kind}-${++n}` } });
-  const lookup = createSlackLookup(rt, slack.api);
-  d = { rt, lookup, slack: slack.api, appUrl: null, log: () => undefined };
-  ws = (await ensureInstalled(rt, { teamId: TEAM, installerUserId: "U0BOSS0001", timezone: "America/Lima", now: T0 as Instant })).workspaceId;
+  const gateway = gatewayOf(rt, { [TEAM]: slack.api });
+  d = { rt, lookup: createSlackLookup(rt, gateway), slack: gateway, appUrl: null, log: () => undefined };
+  ws = await installTeam(rt, { team: TEAM, installer: "U0BOSS0001", now: T0 });
 }, 120_000);
 afterAll(async () => {
   await db?.drop();

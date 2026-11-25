@@ -55,9 +55,33 @@ export interface StoredInstallation {
   readonly uninstalledAt: Instant | null;
 }
 
+/**
+ * What a Slack OAuth v2 install stores in `installation.data_enc` (encrypted). Rows written before
+ * the hosted version hold only `{ teamId }`; they have no bot token until one is adopted or installed.
+ */
+export interface SlackInstallationData {
+  readonly teamId: string;
+  readonly teamName: string | null;
+  readonly botToken: string;
+  readonly botUserId: string;
+  readonly scopes: readonly string[];
+  readonly installerUserId: string | null;
+}
+
+/** The bot credentials of a stored Slack installation, or null when it has none. */
+export function slackBotCredentials(installation: unknown): { readonly botToken: string; readonly botUserId: string | null } | null {
+  const o = installation as { botToken?: unknown; botUserId?: unknown } | null;
+  if (o === null || typeof o !== "object" || typeof o.botToken !== "string" || o.botToken === "") return null;
+  return { botToken: o.botToken, botUserId: typeof o.botUserId === "string" && o.botUserId !== "" ? o.botUserId : null };
+}
+
 export interface DbInstallations {
   bootstrap(input: InstallInput): Promise<BootstrapResult>;
   find(platform: Platform, tenantId: string): Promise<StoredInstallation | null>;
+  /** The installation of a workspace on a platform (any state), or null. */
+  byWorkspace(platform: Platform, workspaceId: WorkspaceId): Promise<StoredInstallation | null>;
+  /** Every installation on a platform that is not uninstalled, oldest first. */
+  active(platform: Platform): Promise<readonly StoredInstallation[]>;
   /** S72: stamps the uninstall; the workspace and its data stay. */
   markUninstalled(platform: Platform, tenantId: string, at: Instant): Promise<void>;
 }
@@ -65,11 +89,27 @@ export interface DbInstallations {
 /** The associated data that binds an encrypted installation to its row. */
 export const installationContext = (platform: Platform, tenantId: string): string => `install:${platform}:${tenantId}`;
 
+interface InstallationRow {
+  readonly tenant_id: string;
+  readonly workspace_id: string;
+  readonly data_enc: string | null;
+  readonly installed_at: Date;
+  readonly uninstalled_at: Date | null;
+}
+
 /** The system actor that links the installer's identity (the platform OAuth proved who they are). */
 const INSTALL_ACTOR = { kind: "system", job: "install" } as const;
 
 export function createDbInstallations(prisma: PrismaClient, opts: { readonly cipher: SecretCipher; readonly ids?: Ids }): DbInstallations {
   const ids = opts.ids ?? uuidv7Ids;
+  const open = (platform: Platform, row: InstallationRow): StoredInstallation => ({
+    platform,
+    tenantId: row.tenant_id,
+    workspaceId: row.workspace_id as WorkspaceId,
+    installation: row.data_enc === null ? null : (JSON.parse(opts.cipher.decrypt(row.data_enc, installationContext(platform, row.tenant_id))) as unknown),
+    installedAt: row.installed_at.getTime() as Instant,
+    uninstalledAt: row.uninstalled_at === null ? null : (row.uninstalled_at.getTime() as Instant),
+  });
   const seal = (input: InstallInput): string | null =>
     input.installation === undefined ? null : opts.cipher.encrypt(toJson(input.installation), installationContext(input.platform, input.tenantId));
 
@@ -124,17 +164,23 @@ export function createDbInstallations(prisma: PrismaClient, opts: { readonly cip
     },
 
     async find(platform, tenantId) {
-      const [row] = await prisma.$queryRaw<{ workspace_id: string; data_enc: string | null; installed_at: Date; uninstalled_at: Date | null }[]>`
-        SELECT workspace_id, data_enc, installed_at, uninstalled_at FROM installation WHERE platform = ${platform} AND tenant_id = ${tenantId}`;
-      if (row === undefined) return null;
-      return {
-        platform,
-        tenantId,
-        workspaceId: row.workspace_id as WorkspaceId,
-        installation: row.data_enc === null ? null : (JSON.parse(opts.cipher.decrypt(row.data_enc, installationContext(platform, tenantId))) as unknown),
-        installedAt: row.installed_at.getTime() as Instant,
-        uninstalledAt: row.uninstalled_at === null ? null : (row.uninstalled_at.getTime() as Instant),
-      };
+      const [row] = await prisma.$queryRaw<InstallationRow[]>`
+        SELECT tenant_id, workspace_id, data_enc, installed_at, uninstalled_at FROM installation WHERE platform = ${platform} AND tenant_id = ${tenantId}`;
+      return row === undefined ? null : open(platform, row);
+    },
+
+    async byWorkspace(platform, workspaceId) {
+      const [row] = await prisma.$queryRaw<InstallationRow[]>`
+        SELECT tenant_id, workspace_id, data_enc, installed_at, uninstalled_at FROM installation
+        WHERE platform = ${platform} AND workspace_id = ${workspaceId} ORDER BY installed_at LIMIT 1`;
+      return row === undefined ? null : open(platform, row);
+    },
+
+    async active(platform) {
+      const rows = await prisma.$queryRaw<InstallationRow[]>`
+        SELECT tenant_id, workspace_id, data_enc, installed_at, uninstalled_at FROM installation
+        WHERE platform = ${platform} AND uninstalled_at IS NULL ORDER BY installed_at, tenant_id`;
+      return rows.map((row) => open(platform, row));
     },
 
     async markUninstalled(platform, tenantId, at) {

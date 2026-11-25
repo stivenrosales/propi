@@ -1,6 +1,7 @@
 // GET /healthz for the container healthcheck: 200 when Postgres answers and Slack is either connected
-// or not configured yet. Without SLACK_BOT_TOKEN the server runs health only (startHealthServer), so
-// a fresh deploy waiting for the Slack app's tokens stays up instead of restart-looping.
+// or not configured yet. It reports the process (every installation shares it), not one team. Without
+// any Slack token the server runs health only (startHealthServer), so a fresh deploy waiting for the
+// Slack app's tokens stays up instead of restart-looping.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 export type SlackHealth = "starting" | "ready" | "not_configured";

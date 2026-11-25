@@ -9,12 +9,14 @@ import { createBoltApp } from "./bolt.ts";
 import { ConfigError, describeConfig, loadConfig } from "./config.ts";
 import { healthRoute, startHealthServer, type HealthState } from "./health.ts";
 import { IMPORT_USAGE, ImportUsageError, importIntoWorkspace, parseImportArgs } from "./import.ts";
-import { ensureInstalled } from "./install.ts";
+import { installationGateway, type SlackGateway } from "./gateway.ts";
+import { adoptEnvToken } from "./install.ts";
 import { createSlackLookup, syncProfiles } from "./lookup.ts";
 import { relayOnce, webhookRelay } from "./relay.ts";
 import { createRuntime } from "./runtime.ts";
 import { createScheduler } from "./scheduler.ts";
 import { webSlackApi } from "./slack-api.ts";
+import type { Runtime } from "./runtime.ts";
 import { openRouterSummarizer } from "./summarizer.ts";
 
 const log = (msg: string, data?: Record<string, unknown>) => console.log(JSON.stringify({ at: new Date().toISOString(), msg, ...data }));
@@ -83,6 +85,30 @@ function untilSignal(): Promise<void> {
   });
 }
 
+/** S4: a manual install's SLACK_BOT_TOKEN is stored into its team's installation once. */
+async function adoptLegacyToken(rt: Runtime, botToken: string, installerUserId: string | null, timezone: string): Promise<void> {
+  try {
+    const { teamId, botUserId } = await webSlackApi(new bolt.webApi.WebClient(botToken)).authTest();
+    const r = await adoptEnvToken(rt, { teamId, botToken, botUserId, installerUserId, timezone, now: rt.ports.clock.now() });
+    if (r.outcome === "skipped") log("SLACK_BOT_TOKEN ignored: its team has no installation and SLACK_INSTALLER_USER_ID is unset; install from the web instead");
+    else log("legacy bot token", { outcome: r.outcome });
+  } catch (e) {
+    // A revoked legacy token must not stop the other workspaces from being served.
+    log("legacy bot token check failed", { error: errText(e) });
+  }
+}
+
+async function syncAllProfiles(rt: Runtime, slack: SlackGateway): Promise<void> {
+  for (const inst of await rt.installations.active("slack")) {
+    const client = await slack.forTeam(inst.tenantId);
+    if (client === null) continue;
+    await syncProfiles(rt, client, inst.workspaceId, inst.tenantId).then(
+      (r) => log("profiles synced", { workspaceId: inst.workspaceId, updated: r.updated }),
+      (e) => log("profile sync failed", { workspaceId: inst.workspaceId, error: errText(e) }),
+    );
+  }
+}
+
 async function serve(): Promise<number> {
   let config;
   try {
@@ -100,7 +126,7 @@ async function serve(): Promise<number> {
   const slackConfig = config.slack;
   if (slackConfig === null) {
     // The Slack app is created after the first deploy: stay up for the healthcheck until its tokens exist.
-    log("Slack not configured: set SLACK_BOT_TOKEN/SLACK_APP_TOKEN; running health only", { port: config.port });
+    log("Slack not configured: set SLACK_APP_TOKEN (Socket Mode) or SLACK_SIGNING_SECRET (HTTP); running health only", { port: config.port });
     const server = await startHealthServer(config.port, healthRoute({ slack: "not_configured", lastLoopError: null }, pingDb));
     await untilSignal();
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -109,22 +135,17 @@ async function serve(): Promise<number> {
   }
   const summarizer = config.openRouter === null ? null : openRouterSummarizer(config.openRouter);
   const rt = createRuntime(prisma, { cipher: secretCipherFromEnv(), summarizer });
-  const slack = webSlackApi(new bolt.webApi.WebClient(slackConfig.botToken));
+  // S3: one client per installed workspace, each with its own stored bot token.
+  const slack = installationGateway(rt, (token) => webSlackApi(new bolt.webApi.WebClient(token)));
   const lookup = createSlackLookup(rt, slack, (m, d) => log(m, d as Record<string, unknown>));
 
-  const { teamId } = await slack.authTest();
-  const install = await ensureInstalled(rt, { teamId, installerUserId: slackConfig.installerUserId, timezone: config.timezone, now: rt.ports.clock.now() });
-  log("workspace ready", { created: install.created, reinstalled: install.reinstalled });
-  // S6: one users.list sweep per start fills display names and avatars of members seen before this
-  // existed; user_change keeps them fresh afterwards. In the background: startup never waits on it.
-  void syncProfiles(rt, slack, install.workspaceId, teamId).then(
-    (r) => log("profiles synced", { updated: r.updated }),
-    (e) => log("profile sync failed", { error: errText(e) }),
-  );
-  const workspaces = async () => {
-    const ws = await lookup.workspace(teamId);
-    return ws === null ? [] : [ws];
-  };
+  if (slackConfig.botToken !== null) await adoptLegacyToken(rt, slackConfig.botToken, slackConfig.installerUserId, config.timezone);
+  const installed = await rt.installations.active("slack");
+  log("workspaces ready", { installed: installed.length });
+  // S6: one users.list sweep per start and installation fills display names and avatars of members
+  // seen before this existed; user_change keeps them fresh afterwards. In the background.
+  void syncAllProfiles(rt, slack);
+  const workspaces = async () => (await rt.installations.active("slack")).map((i) => i.workspaceId);
 
   const health: HealthState = { slack: "starting", lastLoopError: null };
   const deps = { rt, lookup, slack, appUrl: config.appUrl, log };

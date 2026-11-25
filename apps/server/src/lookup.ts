@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import type { Actor, ChannelKind, IdentityRef, MemberId, Mention, WorkspaceId } from "@propi/app";
 import type { SlackLookup } from "@propi/slack";
 import type { Runtime } from "./runtime.ts";
+import type { SlackGateway } from "./gateway.ts";
 import type { SlackApi, SlackUserInfo } from "./slack-api.ts";
 
 const TTL_MS = 60_000;
@@ -66,13 +67,21 @@ export async function syncProfiles(rt: Runtime, slack: SlackApi, ws: WorkspaceId
   return { updated };
 }
 
-export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: string, data?: unknown) => void = () => undefined): ServerLookup {
+/**
+ * S3: every Slack read goes through the client of the team it is about, and every cache is keyed by
+ * team, so one workspace never sees another's users, channels or messages.
+ */
+export function createSlackLookup(rt: Runtime, gateway: SlackGateway, log: (msg: string, data?: unknown) => void = () => undefined): ServerLookup {
   const workspaces = ttlCache<WorkspaceId | null>();
   const users = ttlCache<SlackUserInfo | null>(10 * TTL_MS);
   const channels = ttlCache<ChannelKind>(10 * TTL_MS);
   const groups = ttlCache<readonly string[]>(5 * TTL_MS);
   const reverse = ttlCache<ReadonlyMap<MemberId, string>>();
   const ref = (team: string, user: string): IdentityRef => ({ platform: "slack", tenantId: team, userId: user });
+  const withClient = async <V>(team: string, none: V, f: (slack: SlackApi) => Promise<V>): Promise<V> => {
+    const slack = await gateway.forTeam(team);
+    return slack === null ? none : f(slack);
+  };
 
   async function provision(ws: WorkspaceId, team: string, info: SlackUserInfo): Promise<MemberId | null> {
     const user = info.id;
@@ -100,7 +109,7 @@ export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: strin
   async function human(ws: WorkspaceId, team: string, user: string): Promise<{ kind: "member"; id: MemberId } | { kind: "bot" } | null> {
     const linked = await rt.identities.resolve(ws, ref(team, user));
     if (linked !== null) return { kind: "member", id: linked };
-    const info = await users.get(user, () => slack.userInfo(user));
+    const info = await users.get(`${team}:${user}`, () => withClient(team, null, (slack) => slack.userInfo(user)));
     if (info === null) return null;
     if (info.isBot) return { kind: "bot" };
     if (info.deleted) return null;
@@ -129,7 +138,7 @@ export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: strin
       return who.kind === "bot" ? { kind: "bot" } : { kind: "member", memberId: who.id };
     },
     async groupMembers(ws, team, group) {
-      const ids = await groups.get(`${team}:${group}`, () => slack.usergroupUsers(group));
+      const ids = await groups.get(`${team}:${group}`, () => withClient(team, [], (slack) => slack.usergroupUsers(group)));
       const out: MemberId[] = [];
       for (const user of ids) {
         const who = await human(ws, team, user);
@@ -137,17 +146,17 @@ export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: strin
       }
       return out;
     },
-    message: (_team, channel, ts) => slack.message(channel, ts),
-    channelKind: (_team, channel) =>
-      channels.get(channel, async () => {
-        const c = await slack.channelInfo(channel);
+    message: (team, channel, ts) => withClient(team, null, (slack) => slack.message(channel, ts)),
+    channelKind: (team, channel) =>
+      channels.get(`${team}:${channel}`, async () => {
+        const c = await withClient(team, null, (slack) => slack.channelInfo(channel));
         // Unknown channels count as private, the stricter reading of S16.
         if (c === null) return "private";
         return c.isIm || c.isMpim ? "dm" : c.isPrivate ? "private" : "public";
       }),
     async channelMembers(ws, team, channel) {
       const linked = new Map((await rt.identityStore.list(ws)).filter((i) => i.platform === "slack" && i.tenantId === team).map((i) => [i.userId, i.memberId]));
-      return (await slack.channelMembers(channel)).flatMap((u) => {
+      return (await withClient(team, [], (slack) => slack.channelMembers(channel))).flatMap((u) => {
         const id = linked.get(u);
         return id === undefined ? [] : [id];
       });
@@ -162,7 +171,7 @@ export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: strin
     },
     async profile(ws, team, info) {
       if (info.isBot) return null;
-      users.delete(info.id);
+      users.delete(`${team}:${info.id}`);
       const linked = await rt.identities.resolve(ws, ref(team, info.id));
       if (linked !== null) {
         await rt.admin.setMemberProfile(ws, linked, profileFields(info));

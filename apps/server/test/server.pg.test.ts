@@ -5,11 +5,11 @@ import { asShop, type CommandKey, type CreateReward, type Instant, type MemberId
 import { createSecretCipher } from "@propi/db";
 import type { SlackBlockAction, SlackEnvelope, SlackSlashCommand } from "@propi/slack";
 import { handleAction, handleEvent, handleSlash, type InboundDeps } from "../src/inbound.ts";
-import { ensureInstalled } from "../src/install.ts";
+import { adoptEnvToken } from "../src/install.ts";
 import { createSlackLookup, provisionedMemberId } from "../src/lookup.ts";
 import { relayOnce } from "../src/relay.ts";
 import { createRuntime, type Runtime } from "../src/runtime.ts";
-import { fakeSlack, fixture } from "./fakes.ts";
+import { fakeSlack, fixture, gatewayOf, installTeam, tokenOf } from "./fakes.ts";
 import { createTestDatabase, hasDatabase } from "./pg.ts";
 
 const TEAM = "T0PROPI001";
@@ -43,9 +43,9 @@ beforeAll(async () => {
     clock: { now: () => now as Instant },
     ids: { next: (kind) => `${kind}-${++n}` },
   });
-  const lookup = createSlackLookup(rt, slack.api);
-  d = { rt, lookup, slack: slack.api, appUrl: "https://propi.example", log: (m) => void logs.push(m) };
-  ws = (await ensureInstalled(rt, { teamId: TEAM, installerUserId: "U0BOSS0001", timezone: "America/Lima", now: T0 as Instant })).workspaceId;
+  const gateway = gatewayOf(rt, { [TEAM]: slack.api });
+  d = { rt, lookup: createSlackLookup(rt, gateway), slack: gateway, appUrl: "https://propi.example", log: (m) => void logs.push(m) };
+  ws = await installTeam(rt, { team: TEAM, installer: "U0BOSS0001", now: T0 });
 }, 120_000);
 afterAll(async () => {
   await db?.drop();
@@ -55,8 +55,9 @@ describe.skipIf(!hasDatabase)("server on Postgres", () => {
   test("S5: the first start makes the installer the first admin; a restart changes nothing", async () => {
     const admins = (await rt.ports.directory.members(ws)).filter((r) => r.role === "admin");
     expect(admins).toHaveLength(1);
-    const again = await ensureInstalled(rt, { teamId: TEAM, installerUserId: "U0OTHER001", timezone: "UTC", now: T0 as Instant });
-    expect(again).toEqual({ workspaceId: ws, created: false, reinstalled: false });
+    const again = await adoptEnvToken(rt, { teamId: TEAM, botToken: "xoxb-other", botUserId: "U0PROPIBOT", installerUserId: "U0OTHER001", timezone: "UTC", now: T0 as Instant });
+    expect(again).toEqual({ workspaceId: ws, outcome: "kept" });
+    expect((await rt.installations.find("slack", TEAM))?.installation).toMatchObject({ botToken: tokenOf(TEAM) });
     expect((await rt.ports.directory.members(ws)).filter((r) => r.role === "admin")).toHaveLength(1);
   });
 

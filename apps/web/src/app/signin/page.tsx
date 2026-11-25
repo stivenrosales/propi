@@ -10,7 +10,9 @@ const ERRORS: Record<string, string> = {
   slack_not_configured: "Sign in with Slack is not configured on this server yet.",
   slack_denied: "Slack sign-in was cancelled.",
   invalid_state: "That sign-in link expired. Please try again.",
-  workspace_not_installed: "Propi is not installed in that Slack workspace yet.",
+  workspace_not_installed: "Propi isn't installed in this Slack workspace yet.",
+  install_cancelled: "Adding Propi to Slack was cancelled.",
+  install_failed: "Propi could not be added to Slack. Please try again.",
   identity_not_linked: "Your Slack account is not linked to a Propi member yet. Say hi to Propi in Slack first, or ask an admin.",
   inactive_member: "Your Propi membership is deactivated. Ask an admin to reactivate it.",
 };
@@ -31,6 +33,8 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
   const slack = slackOidc() !== null;
   const dev = devLoginEnabled() ? await devMembers() : null;
   const error = sp.error ? (ERRORS[sp.error] ?? "Sign-in failed. Please try again.") : null;
+  // S5: a team without an installation is offered the install right here.
+  const notInstalled = sp.error === "workspace_not_installed";
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-md">
@@ -42,6 +46,20 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
           <h1 className="font-display text-3xl font-black tracking-tight">Welcome back</h1>
           <p className="mt-2 text-ink-soft">Sign in with the Slack account you use with Propi.</p>
           {error ? <p role="alert" className="mt-4 rounded-2xl bg-coral-soft px-4 py-3 text-sm font-semibold">{error}</p> : null}
+          {sp.installed ? (
+            <p role="status" className="mt-4 rounded-2xl bg-sunflower/40 px-4 py-3 text-sm font-semibold">
+              Propi is installed in your Slack workspace. Sign in with Slack to open your dashboard.
+            </p>
+          ) : null}
+          {notInstalled ? (
+            <a
+              href={slack ? "/slack/install" : undefined}
+              aria-disabled={!slack}
+              className={`lift mt-6 flex min-h-12 items-center justify-center gap-3 rounded-full border-2 border-ink bg-coral px-6 font-display text-lg font-extrabold text-ink shadow-sticker ${slack ? "" : "pointer-events-none opacity-50"}`}
+            >
+              <SlackIcon /> Add to Slack
+            </a>
+          ) : null}
           <a
             href={slack ? "/auth/slack" : undefined}
             aria-disabled={!slack}
@@ -49,6 +67,14 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
           >
             <SlackIcon /> Sign in with Slack
           </a>
+          {slack && !notInstalled ? (
+            <p className="mt-4 text-center text-sm text-ink-soft">
+              New to Propi?{" "}
+              <a href="/slack/install" className="font-bold text-ink underline underline-offset-4">
+                Add it to your Slack workspace
+              </a>
+            </p>
+          ) : null}
           {dev ? (
             <form action="/auth/dev" method="post" className="mt-8 border-t border-dashed border-line pt-6">
               <p className="mb-3 font-display text-sm font-extrabold tracking-wide text-coral-ink uppercase">Dev login</p>

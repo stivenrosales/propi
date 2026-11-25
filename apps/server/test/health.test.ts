@@ -11,11 +11,14 @@ import { hasDatabase, DATABASE_URL } from "./pg.ts";
 const MAIN = join(import.meta.dirname, "..", "src", "main.ts");
 
 describe("config without Slack tokens", () => {
-  test("S-SAFETY: SLACK_BOT_TOKEN unset gives slack: null instead of a ConfigError", () => {
+  test("S-SAFETY: no Slack token at all gives slack: null instead of a ConfigError", () => {
     const c = loadConfig({ DATABASE_URL: "postgresql://x" });
     expect(c.slack).toBeNull();
     expect(describeConfig(c)).toMatchObject({ slackMode: "not_configured" });
-    expect(loadConfig({ DATABASE_URL: "postgresql://x", SLACK_BOT_TOKEN: "  ", SLACK_APP_TOKEN: "xapp-synthetic" }).slack).toBeNull();
+  });
+  test("S4: SLACK_BOT_TOKEN is optional; the app-level token alone serves every installation", () => {
+    expect(loadConfig({ DATABASE_URL: "postgresql://x", SLACK_BOT_TOKEN: "  ", SLACK_APP_TOKEN: "xapp-synthetic" }).slack).toMatchObject({ mode: "socket", botToken: null, appToken: "xapp-synthetic" });
+    expect(loadConfig({ DATABASE_URL: "postgresql://x", SLACK_SOCKET_MODE: "false", SLACK_SIGNING_SECRET: "s" }).slack).toMatchObject({ mode: "http", botToken: null });
   });
   test("a bot token without the Socket Mode app token is still an error", () => {
     expect(() => loadConfig({ DATABASE_URL: "postgresql://x", SLACK_BOT_TOKEN: "xoxb-synthetic" })).toThrow(/SLACK_APP_TOKEN is required/);
@@ -101,7 +104,7 @@ describe("propi-server serve without Slack tokens", () => {
     const s = await serveWithoutSlack("postgresql://propi:propi@127.0.0.1:1/propi");
     try {
       expect(s.health).toMatchObject({ status: 503, body: { ok: false, slack: "not_configured" } });
-      expect(s.stdout()).toContain("Slack not configured: set SLACK_BOT_TOKEN/SLACK_APP_TOKEN; running health only");
+      expect(s.stdout()).toContain("Slack not configured: set SLACK_APP_TOKEN (Socket Mode) or SLACK_SIGNING_SECRET (HTTP); running health only");
       expect(s.stdout()).not.toContain("is required");
     } finally {
       expect(await stop(s.child)).toBe(0);

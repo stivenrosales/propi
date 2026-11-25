@@ -20,16 +20,18 @@ import {
   type SlackMessageBody,
   type SlackSlashCommand,
 } from "@propi/slack";
+import type { SlackGateway } from "./gateway.ts";
 import type { ServerLookup } from "./lookup.ts";
 import type { Runtime } from "./runtime.ts";
-import { profileOf, type SlackApi, type SlackUserObject } from "./slack-api.ts";
+import { profileOf, type SlackUserObject } from "./slack-api.ts";
 
 export type Log = (msg: string, data?: Record<string, unknown>) => void;
 
 export interface InboundDeps {
   readonly rt: Runtime;
   readonly lookup: ServerLookup;
-  readonly slack: SlackApi;
+  /** S3: the Slack client of each workspace; replies use the client of the team they belong to. */
+  readonly slack: SlackGateway;
   readonly appUrl: string | null;
   readonly log: Log;
 }
@@ -88,11 +90,15 @@ export async function handleEvent(d: InboundDeps, body: SlackEnvelope): Promise<
   return { handled: "command", type: t.command.type, result };
 }
 
-/** S72: an uninstall keeps every row; it only stops the workspace from being served. */
-export async function uninstall(d: Pick<InboundDeps, "rt" | "lookup" | "log">, team: string, atMs: number): Promise<void> {
+/**
+ * S72: an uninstall keeps every row; it only stops the workspace from being served. S3: only this
+ * team's installation is marked, and its cached token is dropped so nothing more is sent with it.
+ */
+export async function uninstall(d: Pick<InboundDeps, "rt" | "lookup" | "slack" | "log">, team: string, atMs: number): Promise<void> {
   await d.rt.installations.markUninstalled("slack", team, Math.round(atMs) as Instant);
   d.lookup.invalidate();
-  d.log("workspace uninstalled; data kept (S72)");
+  d.slack.invalidate(team);
+  d.log("workspace uninstalled; data kept (S72)", { team });
 }
 
 /** S28, S48, S80: the App Home tab with balance, remaining allowance, leaderboard and the shop. */
@@ -116,7 +122,9 @@ export async function publishHome(d: InboundDeps, team: string, user: string): P
   if (ws === null) return;
   const actor = await d.lookup.actor(ws, team, user);
   if (actor?.kind !== "member") return;
-  await d.slack.publishHome(user, await homeFor(d, ws, actor));
+  const slack = await d.slack.forTeam(team);
+  if (slack === null) return;
+  await slack.publishHome(user, await homeFor(d, ws, actor));
 }
 
 /** `/propi …`: the reply is ephemeral, returned to Bolt's ack (within 3 s). */

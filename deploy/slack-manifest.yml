@@ -1,7 +1,8 @@
 # Slack app manifest for Propi. Create the app at https://api.slack.com/apps?new_app=1 → "From a manifest".
-# Socket Mode: no public Slack URL is needed. You then need two tokens:
-#   SLACK_BOT_TOKEN (xoxb-…, OAuth & Permissions → Install to workspace)
+# Socket Mode: no public Slack URL is needed for events. You need:
 #   SLACK_APP_TOKEN (xapp-…, Basic Information → App-Level Tokens, scope connections:write)
+#   SLACK_CLIENT_ID / SLACK_CLIENT_SECRET (Basic Information → App Credentials)
+# Workspaces install through ${APP_URL}/slack/install (Manage Distribution → public distribution on).
 display_information:
   name: Propi
   description: Give props to teammates, redeem them in your team's shop.
@@ -22,6 +23,7 @@ features:
 oauth_config:
   redirect_urls:
     - https://propihq.com/auth/slack/callback
+    - https://propihq.com/slack/oauth/callback
   scopes:
     user:
       - openid

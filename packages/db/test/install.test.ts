@@ -1,7 +1,7 @@
 // S5 workspace bootstrap from a platform install, and the installation store (S72).
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { createApiTokens, createApp, createIdentities, nodeCrypto, type CommandKey, type Instant, type MemberId, type PosInt, type WorkspaceId } from "@propi/app";
-import { createDbIdentityStore, createDbInstallations, createDbPorts, createSecretCipher, type DbInstallations, type PrismaClient } from "../src/index.ts";
+import { createDbIdentityStore, createDbInstallations, createDbPorts, createSecretCipher, slackBotCredentials, type DbInstallations, type PrismaClient } from "../src/index.ts";
 import { createTestDatabase, hasDatabase, type TestDatabase } from "./pg.ts";
 import { T0 } from "./harness.ts";
 
@@ -87,5 +87,26 @@ describe.skipIf(!hasDatabase)("workspace bootstrap (S5)", () => {
     expect((await createDbPorts(pg!).directory.members("workspace-1" as WorkspaceId)).length).toBe(1);
     expect((await installs.bootstrap(slackInstall("T1", "U1"))).created).toBe(false);
     expect((await installs.find("slack", "T1"))?.uninstalledAt).toBeNull();
+  });
+  test("S2 S3: a reinstall after an uninstall stores the new token, keeps roles; active() and byWorkspace() list installations", async () => {
+    await installs.bootstrap(slackInstall("T-two", "U7", "xoxb-two"));
+    await installs.markUninstalled("slack", "T-two", (T0 + 1) as Instant);
+    expect((await installs.active("slack")).map((i) => i.tenantId)).not.toContain("T-two");
+
+    const ws = (await installs.find("slack", "T-two"))!.workspaceId;
+    const r = await installs.bootstrap({ ...slackInstall("T-two", "U8", "xoxb-two-new"), installation: { teamId: "T-two", botToken: "xoxb-two-new", botUserId: "UB2" } });
+    expect(r).toEqual({ workspaceId: ws, created: false, installerMemberId: null });
+    const back = await installs.byWorkspace("slack", ws);
+    expect(back).toMatchObject({ tenantId: "T-two", uninstalledAt: null, installation: { botToken: "xoxb-two-new" } });
+    expect(slackBotCredentials(back!.installation)).toEqual({ botToken: "xoxb-two-new", botUserId: "UB2" });
+    expect((await createDbPorts(pg!).directory.members(ws)).map((m) => m.role)).toEqual(["admin"]);
+    expect((await installs.active("slack")).map((i) => i.tenantId)).toContain("T-two");
+    expect(await installs.byWorkspace("slack", "workspace-none" as WorkspaceId)).toBeNull();
+  });
+
+  test("slackBotCredentials: rows without a token (pre-cloud { teamId }) have none", () => {
+    expect(slackBotCredentials({ teamId: "T1" })).toBeNull();
+    expect(slackBotCredentials(null)).toBeNull();
+    expect(slackBotCredentials({ botToken: "xoxb-1" })).toEqual({ botToken: "xoxb-1", botUserId: null });
   });
 });

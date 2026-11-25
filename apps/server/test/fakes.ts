@@ -1,6 +1,10 @@
 // A recording fake of the Slack Web API port, and fixture loading from packages/slack.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Instant, WorkspaceId } from "@propi/app";
+import { installationGateway, type SlackGateway } from "../src/gateway.ts";
+import { adoptEnvToken } from "../src/install.ts";
+import type { Runtime } from "../src/runtime.ts";
 import type { SlackApi, SlackUserInfo } from "../src/slack-api.ts";
 
 export const fixture = <T = never>(name: string): T =>
@@ -39,4 +43,23 @@ export function fakeSlack(
     publishHome: async (user, view) => void homes.push({ user, blocks: view.blocks }),
   };
   return { api, posted, homes, take: () => posted.splice(0, posted.length) };
+}
+
+/** The bot token a test team is installed with. */
+export const tokenOf = (team: string) => `xoxb-test-${team}`;
+
+/** Installs a Slack team with its own bot token (stored encrypted, as the OAuth install does); installer is first admin. */
+export async function installTeam(rt: Runtime, o: { readonly team: string; readonly installer: string; readonly timezone?: string; readonly now: number }): Promise<WorkspaceId> {
+  const r = await adoptEnvToken(rt, { teamId: o.team, botToken: tokenOf(o.team), botUserId: "U0PROPIBOT", installerUserId: o.installer, timezone: o.timezone ?? "America/Lima", now: o.now as Instant });
+  return r.workspaceId!;
+}
+
+/** The real installation gateway, with each team's bot token mapped to a fake Slack client. */
+export function gatewayOf(rt: Runtime, byTeam: Record<string, SlackApi>): SlackGateway {
+  const byToken = new Map(Object.entries(byTeam).map(([team, api]) => [tokenOf(team), api]));
+  return installationGateway(rt, (token) => {
+    const api = byToken.get(token);
+    if (api === undefined) throw new Error(`no fake Slack for token ${token}`);
+    return api;
+  });
 }

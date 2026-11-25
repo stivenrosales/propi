@@ -30,6 +30,6 @@ export {
   type DbWebhookEndpointStore,
 } from "./api.ts";
 export { createDbInsights, exportRedemptionRow, type DbInsights } from "./insights.ts";
-export { createDbInstallations, installationContext, type BootstrapResult, type DbInstallations, type InstallInput, type StoredInstallation } from "./install.ts";
+export { createDbInstallations, installationContext, slackBotCredentials, type BootstrapResult, type DbInstallations, type InstallInput, type SlackInstallationData, type StoredInstallation } from "./install.ts";
 export { readGifts } from "./ports.ts";
 export { safeNumber } from "./numbers.ts";

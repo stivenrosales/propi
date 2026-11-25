@@ -33,9 +33,10 @@ import {
 } from "@propi/slack";
 import { renderContext, type Log } from "./inbound.ts";
 import { NOTIFY_EVENT, type ServerNotification } from "./jobs.ts";
+import type { SlackGateway } from "./gateway.ts";
 import type { ServerLookup } from "./lookup.ts";
 import type { Runtime } from "./runtime.ts";
-import { isPermanentSlackError, type SlackApi } from "./slack-api.ts";
+import { isPermanentSlackError } from "./slack-api.ts";
 
 export type SlackTarget =
   | { readonly kind: "dm"; readonly to: MemberId }
@@ -50,7 +51,8 @@ export interface SlackDelivery {
 export interface RelayDeps {
   readonly rt: Runtime;
   readonly lookup: ServerLookup;
-  readonly slack: SlackApi;
+  /** S3: each delivery goes out with the client of the event's own workspace. */
+  readonly slack: SlackGateway;
   readonly appUrl: string | null;
   readonly log: Log;
 }
@@ -128,8 +130,16 @@ export async function slackDeliveriesFor(d: Pick<RelayDeps, "rt">, ev: OutboxEve
   }
 }
 
-/** Sends one delivery. Permanent failures (no such user, archived channel) are logged and skipped. */
+/**
+ * Sends one delivery with the workspace's own client (S3). Permanent failures (no such user, archived
+ * channel) are logged and skipped, and so is a workspace without an active installation (uninstalled).
+ */
 export async function sendDelivery(d: RelayDeps, ws: WorkspaceId, del: SlackDelivery): Promise<"sent" | "skipped"> {
+  const slack = await d.slack.forWorkspace(ws);
+  if (slack === null) {
+    d.log("slack delivery skipped", { error: "not_installed", workspaceId: ws });
+    return "skipped";
+  }
   try {
     let channel: string;
     if (del.target.kind === "channel") channel = del.target.channel;
@@ -141,9 +151,9 @@ export async function sendDelivery(d: RelayDeps, ws: WorkspaceId, del: SlackDeli
         if (u !== null) users.push(u);
       }
       if (users.length === 0 || (del.target.kind === "group" && users.length < 2)) return "skipped";
-      channel = await d.slack.openConversation(users);
+      channel = await slack.openConversation(users);
     }
-    await d.slack.postMessage(channel, del.body);
+    await slack.postMessage(channel, del.body);
     return "sent";
   } catch (err) {
     if (isPermanentSlackError(err)) {

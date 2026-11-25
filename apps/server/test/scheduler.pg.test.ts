@@ -8,12 +8,11 @@ import type { DigestSummary, Summarizer } from "@propi/core/insights";
 import { createSecretCipher } from "@propi/db";
 import { sampleExport, writeHeyTacoExport } from "@propi/heytaco/testing";
 import { importIntoWorkspace } from "../src/import.ts";
-import { ensureInstalled } from "../src/install.ts";
 import { createSlackLookup } from "../src/lookup.ts";
 import { relayOnce } from "../src/relay.ts";
 import { createRuntime, type Runtime } from "../src/runtime.ts";
 import { createScheduler } from "../src/scheduler.ts";
-import { fakeSlack } from "./fakes.ts";
+import { fakeSlack, gatewayOf, installTeam } from "./fakes.ts";
 import { createTestDatabase, hasDatabase } from "./pg.ts";
 
 const TEAM = "T0PROPI001";
@@ -48,7 +47,7 @@ beforeAll(async () => {
   if (!hasDatabase) return;
   db = await createTestDatabase();
   rt = runtime(false);
-  ws = (await ensureInstalled(rt, { teamId: TEAM, installerUserId: "U0BOSS0001", timezone: "America/Lima", now: now as Instant })).workspaceId;
+  ws = await installTeam(rt, { team: TEAM, installer: "U0BOSS0001", now });
 }, 120_000);
 afterAll(async () => {
   rmSync(scratch, { recursive: true, force: true });
@@ -69,7 +68,8 @@ describe.skipIf(!hasDatabase)("scheduler on Postgres", () => {
     expect((await scheduler.tick(now as Instant)).ran).toEqual({});
 
     const slack = fakeSlack();
-    const pass = await relayOnce({ rt, lookup: createSlackLookup(rt, slack.api), slack: slack.api, appUrl: "https://propi.example", log: () => undefined });
+    const gateway = gatewayOf(rt, { [TEAM]: slack.api });
+    const pass = await relayOnce({ rt, lookup: createSlackLookup(rt, gateway), slack: gateway, appUrl: "https://propi.example", log: () => undefined });
     expect(pass.slackSent).toBeGreaterThanOrEqual(1);
     expect(slack.posted.map((p) => p.channel)).toContain("DM:U0BOSS0001");
     expect(slack.posted.find((p) => p.text.startsWith("Your week in tacos (2026-W49)"))).toBeDefined();
@@ -90,7 +90,8 @@ describe.skipIf(!hasDatabase)("scheduler on Postgres", () => {
     expect((await on.tick(now as Instant)).ran.digest).toBeUndefined();
     expect(summaries).toEqual(["2026-11"]);
     const slack = fakeSlack();
-    await relayOnce({ rt: withAi, lookup: createSlackLookup(withAi, slack.api), slack: slack.api, appUrl: null, log: () => undefined });
+    const gateway = gatewayOf(withAi, { [TEAM]: slack.api });
+    await relayOnce({ rt: withAi, lookup: createSlackLookup(withAi, gateway), slack: gateway, appUrl: null, log: () => undefined });
     expect(slack.posted.find((p) => p.text === "Recognition digest for 2026-11")?.channel).toBe("DM:U0BOSS0001");
   });
 });
@@ -110,7 +111,7 @@ describe.skipIf(!hasDatabase)("HeyTaco import into Postgres", () => {
     expect(again.report).toMatchObject({ applied: 0, membersCreated: 0, replayed: first.report.applied });
 
     // S107: a live Slack user from the export resolves to the imported member, no new member.
-    const lookup = createSlackLookup(rt, fakeSlack().api);
+    const lookup = createSlackLookup(rt, gatewayOf(rt, { [TEAM]: fakeSlack().api }));
     const before = (await rt.ports.directory.members(ws)).length;
     expect(await lookup.actor(ws, TEAM, "U1")).toMatchObject({ kind: "member" });
     expect((await rt.ports.directory.members(ws)).length).toBe(before);

@@ -3,19 +3,23 @@
 // in deploy/propi.env.example.
 
 export interface SlackConfig {
-  readonly botToken: string;
+  /**
+   * S4 legacy self-host bootstrap: a bot token from a manual install. On start it is adopted into its
+   * team's installation once; every workspace is then served with its own stored token. Optional.
+   */
+  readonly botToken: string | null;
   /** Socket Mode (default): needs the app-level token, no public URL. */
   readonly mode: "socket" | "http";
   readonly appToken: string | null;
   readonly signingSecret: string | null;
-  /** S5: the Slack user who installed the app; becomes the first admin of a new workspace. */
+  /** S5 legacy bootstrap: who installed the app manually; first admin when SLACK_BOT_TOKEN creates the workspace. */
   readonly installerUserId: string | null;
 }
 
 export interface ServerConfig {
   readonly databaseUrl: string;
   /**
-   * null when SLACK_BOT_TOKEN is unset: the Slack app is created and its tokens entered after the
+   * null when no Slack token is set at all: the Slack app is created and its tokens entered after the
    * first deploy, so the server then runs health only (/healthz) instead of crash-looping.
    */
   readonly slack: SlackConfig | null;
@@ -56,14 +60,15 @@ function int(env: Env, name: string, fallback: number): number {
 }
 
 /**
- * Slack is off (null) without SLACK_BOT_TOKEN. With it: Socket Mode unless SLACK_SOCKET_MODE=false,
- * which needs SLACK_SIGNING_SECRET for HTTP mode.
+ * Slack is off (null) when none of SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_SIGNING_SECRET is set.
+ * Otherwise Socket Mode unless SLACK_SOCKET_MODE=false, which needs SLACK_SIGNING_SECRET for HTTP mode.
+ * Bot tokens live per workspace in their installation (S3); SLACK_BOT_TOKEN is optional (S4).
  */
 function loadSlack(env: Env): SlackConfig | null {
   const socketFlag = val(env, "SLACK_SOCKET_MODE")?.toLowerCase();
   if (socketFlag !== undefined && socketFlag !== "true" && socketFlag !== "false") throw new ConfigError("SLACK_SOCKET_MODE must be true or false");
   const botToken = val(env, "SLACK_BOT_TOKEN");
-  if (botToken === null) return null;
+  if (botToken === null && val(env, "SLACK_APP_TOKEN") === null && val(env, "SLACK_SIGNING_SECRET") === null) return null;
   const mode = socketFlag === "false" ? "http" : "socket";
   return {
     botToken,
@@ -95,6 +100,7 @@ export function describeConfig(c: ServerConfig): Record<string, unknown> {
     port: c.port,
     appUrl: c.appUrl,
     timezone: c.timezone,
+    legacyBotToken: c.slack?.botToken != null,
     installerConfigured: c.slack?.installerUserId != null,
     digest: c.openRouter === null ? "off (OPENROUTER_API_KEY unset)" : `on (${c.openRouter.model})`,
     scheduler: c.schedulerEnabled,

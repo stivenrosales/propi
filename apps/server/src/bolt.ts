@@ -7,6 +7,7 @@ import bolt from "@slack/bolt";
 import type { App as BoltApp, CustomRoute, ReceiverEvent } from "@slack/bolt";
 import type { SlackBlockAction, SlackEnvelope, SlackSlashCommand } from "@propi/slack";
 import type { SlackConfig } from "./config.ts";
+import type { SlackGateway } from "./gateway.ts";
 import { handleAction, handleEvent, handleSlash, publishHome, type InboundDeps } from "./inbound.ts";
 
 const { App, LogLevel } = bolt;
@@ -21,9 +22,21 @@ export function deferEventAcks(app: BoltApp): void {
   };
 }
 
+/**
+ * S3: Bolt authorizes each request with the bot token of the request's team (its installation), so
+ * one process serves every installed workspace. The app-level token stays shared (Socket Mode).
+ */
+export function boltAuthorize(gateway: SlackGateway) {
+  return async (source: { teamId?: string | undefined }) => {
+    const a = source.teamId === undefined ? null : await gateway.auth(source.teamId);
+    if (a === null) throw new Error(`no active Propi installation for team ${source.teamId ?? "(none)"}`);
+    return { botToken: a.botToken, ...(a.botUserId === null ? {} : { botUserId: a.botUserId }), teamId: a.teamId };
+  };
+}
+
 export function createBoltApp(config: { readonly slack: SlackConfig; readonly port: number }, d: InboundDeps, routes: CustomRoute[]): BoltApp {
   const { slack } = config;
-  const common = { token: slack.botToken, logLevel: LogLevel.INFO, customRoutes: routes, installerOptions: { port: config.port } };
+  const common = { authorize: boltAuthorize(d.slack), logLevel: LogLevel.INFO, customRoutes: routes, installerOptions: { port: config.port } };
   const app =
     slack.mode === "socket"
       ? new App({ ...common, socketMode: true, appToken: slack.appToken ?? "" })
@@ -49,12 +62,19 @@ export function createBoltApp(config: { readonly slack: SlackConfig; readonly po
     const r = await handleAction(d, payload);
     if (r === null) return;
     if (payload.response_url !== undefined) await respond({ response_type: "ephemeral", replace_original: false, text: r.text });
-    else await d.slack.postMessage(await d.slack.openConversation([payload.user.id]), { text: r.text, blocks: [] });
+    else {
+      const team = payload.team?.id ?? payload.user.team_id ?? "";
+      const client = await d.slack.forTeam(team);
+      if (client !== null) await client.postMessage(await client.openConversation([payload.user.id]), { text: r.text, blocks: [] });
+    }
     if (r.refreshHome) await publishHome(d, payload.team?.id ?? payload.user.team_id ?? "", payload.user.id);
   });
 
   app.error(async (err) => {
-    d.log("bolt error", { error: err.message, code: (err as { code?: string }).code ?? null });
+    const code = (err as { code?: string }).code ?? null;
+    d.log("bolt error", { error: err.message, code });
+    // A team without an active installation will not get one by retrying: acknowledge and drop it.
+    if (code === bolt.ErrorCode.AuthorizationError) return;
     throw err; // keeps the event unacknowledged (G7)
   });
   return app;
