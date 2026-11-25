@@ -37,8 +37,8 @@ export interface ServerLookup extends SlackLookup {
   /** Drops cached workspace and identity data (after install/uninstall). */
   invalidate(): void;
   /**
-   * S6: a Slack profile arrived (user_change, team_join). Updates the linked member, or provisions a
-   * new human one with it. Bots and deleted unknown users are ignored. Returns the member, if any.
+   * S6: a Slack profile arrived (user_change, team_join). Updates the linked member only; unknown
+   * users are provisioned on first sighting instead. Bots are ignored. Returns the member, if any.
    */
   profile(ws: WorkspaceId, team: string, info: SlackUserInfo): Promise<MemberId | null>;
 }
@@ -168,10 +168,9 @@ export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: strin
         await rt.admin.setMemberProfile(ws, linked, profileFields(info));
         return linked;
       }
-      if (info.deleted) return null;
-      const id = await provision(ws, team, info);
-      if (id !== null) await rt.admin.setMemberProfile(ws, id, profileFields(info));
-      return id;
+      // Profile events never create members: people join Propi when they first give or receive,
+      // so guests and inactive users don't fill the member list or the isolation alerts.
+      return null;
     },
   };
 }

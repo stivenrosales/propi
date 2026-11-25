@@ -67,9 +67,11 @@ describe.skipIf(!hasDatabase)("member profiles on Postgres (S6)", () => {
     expect(await rt.ports.directory.member(ws, member("U0ANA00001"))).toMatchObject({ displayName: "Ana T.", avatarUrl: "https://img/ana2_192.png" });
   });
 
-  test("team_join provisions the new member with their profile; bots are ignored", async () => {
+  test("team_join and user_change never create members: people join Propi on first sighting; bots are ignored", async () => {
     await handleEvent(d, userEvent("team_join", { id: "U0NEW00001", name: "newbie", deleted: false, is_bot: false, profile: { real_name: "New Person", image_72: "https://img/new_72.png" } }));
-    expect(await rt.ports.directory.member(ws, member("U0NEW00001"))).toMatchObject({ displayName: "New Person", avatarUrl: "https://img/new_72.png", active: true });
+    expect(await rt.ports.directory.member(ws, member("U0NEW00001"))).toBeNull();
+    await handleEvent(d, userEvent("user_change", { id: "U0GUEST001", name: "guest", deleted: false, is_bot: false, profile: { display_name: "Guest" } }));
+    expect(await rt.ports.directory.member(ws, member("U0GUEST001"))).toBeNull();
     await handleEvent(d, userEvent("team_join", { id: "U0BOTUSER1", name: "bot", is_bot: true, profile: { display_name: "Bot" } }));
     expect(await rt.ports.directory.member(ws, member("U0BOTUSER1"))).toBeNull();
   });

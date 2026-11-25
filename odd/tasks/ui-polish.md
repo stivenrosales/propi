@@ -17,14 +17,16 @@ Branch: feat/ui-polish. Delivery: ask-on-risk. Test runner: vitest (web typechec
 
 | ID | Specs | Route | Status | Evidence |
 |---|---|---|---|---|
-| T1 | S3 | inline | done (uncommitted) | cx.test.ts RED→GREEN 6/6; Button with pending + inline confirm; coral-ink token |
-| T2 | S4 | inline | done (uncommitted) | 48 Playwright shots: 0 console/network errors, 0 horizontal overflow at 390; active tab x=136-253 on phone |
-| T3 | S5 | inline | done (uncommitted) | currency from shop budget; no "USD" left in product pages |
-| T4 | S6 | delegated (parallel unit, disjoint surface: db + server + web views/auth); Risk: item 1 (migration) | in correction | migration 20261125040000_member_profile; regression found: App Home renders 0 (race), sent back to writer |
-| T5 | S7 | inline | done (uncommitted) | readable-text.test.ts RED→GREEN; boundaries, badges, empty states, switch, plurals |
+| T1 | S3 | inline | done, 7709986 | cx.test.ts RED→GREEN 6/6; Button with pending + inline confirm; coral-ink token |
+| T2 | S4 | inline | done, 7709986 | 48 Playwright shots: 0 console/network errors, 0 horizontal overflow at 390; active tab x=136-253 on phone |
+| T3 | S5 | inline | done, 7709986 | currency from shop budget; no "USD" left in product pages |
+| T4 | S6 | delegated (parallel unit, disjoint surface: db + server + web views/auth); Risk: item 1 (migration) | done, 71e6559 + follow-up fix | migration 20261125040000_member_profile; independent verifier PASS 6/6 |
+| T5 | S7 | inline | done, 7709986 | readable-text.test.ts RED→GREEN; boundaries, badges, empty states, switch, plurals |
 
 ## Log
 
 - **L1 (2026-11-25, user, verbatim):** "Amigo, vamos a trabajr en la version nube, pero antes pulir la UI para que todo este ok  o que falta, ya comprabmos que iona en slack y genial :D"
 - **L2 (2026-11-25):** user named /impeccable for this phase; PRODUCT.md written with Duolingo as reference. Two read-only audits ran (Playwright: 1 P0, 7 P1; code: 7 P1, 10 P2, 4 P3). Audit side effects on dev DB only: reward "Audit mug", value "Curiosity", two redemptions.
 - **L3 (2026-11-25):** T1-T3, T5 implemented inline; web tests 65/65, typecheck ok. Full suite 665/666: the failure (S28 App Home) was first reported as stale text, but a differential run (T4 server changes stashed → Home shows 2; with them → 0; an extra awaited read before the event → 2) shows a T4 race. Sent back to the T4 writer for one correction batch. Slack app needs `user_change` and `team_join` event subscriptions (manifest updated) before profile refresh works live.
+- **L4 (2026-11-25):** writer could not reproduce the App Home 0; parent reran server.pg 6/6 and the full suite 2x green (666/666), verifier 9 runs green. Recorded as an unexplained one-off observation, not a confirmed bug. Commits: 71e6559 (profiles), 7709986 (UI). Verifier notes acted on: profile events no longer provision members (would add guests and skew isolation alerts), sign-in profile read guarded, home greeting and profile page use the stored Slack name and avatar like the frame.
+- **Next:** user adds `user_change` and `team_join` event subscriptions in the Slack app; deploy to haiku-vps needs the user's go-ahead (migration runs on prod). Then the cloud (multi-tenant) version, starting with /pstack:architect.

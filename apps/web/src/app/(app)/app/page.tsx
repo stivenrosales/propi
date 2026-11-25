@@ -23,7 +23,8 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   const top = await p.boards.leaderboard(viewer.ws, viewer.actor, { board, timeframe: { kind: "month" }, limit: 5 });
   const { currency, timezone } = w.settings;
   const { balances, level } = lvl;
-  const name = viewer.session.name?.split(" ")[0] ?? w.label(viewer.memberId).split(" ")[0];
+  // Same name as the app frame: the stored Slack profile first, then the sign-in session.
+  const name = (w.members.find((m) => m.id === viewer.memberId)?.displayName ?? viewer.session.name ?? w.label(viewer.memberId)).split(" ")[0];
   const left = allowance.limit === 0 ? 0 : Math.min(100, Math.round((allowance.remaining / allowance.limit) * 100));
   const toNext = level.next ? level.next.min - level.points : 0;
   const floor = lvl.config.table.find((l) => l.level === level.level)?.min ?? 0;

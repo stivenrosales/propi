@@ -39,7 +39,8 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   const unlocked = new Set(unlockedAvatars(level.level, config.avatars).map((a) => a.id));
   const mine = prefs.get(viewer.memberId);
   const paired = optedIn.includes(viewer.memberId);
-  const label = viewer.session.name ?? w.label(viewer.memberId);
+  // Same name and picture as the app frame: the stored Slack profile first, then the sign-in session.
+  const label = w.members.find((m) => m.id === viewer.memberId)?.displayName ?? viewer.session.name ?? w.label(viewer.memberId);
   const chosen = config.avatars.find((a) => a.id === avatar);
 
   return (
@@ -49,7 +50,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
       <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
         <Card className="bg-sunflower-soft">
           <div className="flex items-center gap-4">
-            <Avatar id={viewer.memberId} label={label} src={chosen?.image ?? viewer.session.picture} size="lg" />
+            <Avatar id={viewer.memberId} label={label} src={chosen?.image ?? w.avatar(viewer.memberId) ?? viewer.session.picture} size="lg" />
             <div>
               <h2 className="font-display text-2xl font-black">{label}</h2>
               <p className="text-sm text-ink-soft capitalize">{viewer.role}</p>
