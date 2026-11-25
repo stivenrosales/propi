@@ -1,0 +1,11 @@
+data/
+.env
+node_modules/
+.env*
+!.env.example
+dist/
+.next/
+coverage/
+*.tsbuildinfo
+.turbo/
+out/

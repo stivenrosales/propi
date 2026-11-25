@@ -1,0 +1,34 @@
+---
+title: "Redemption (S49-S55)"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: start
+    lg1: wait
+    lg2: end
+  }
+  class lg0 blue
+  class lg1 orange
+  class lg2 teal
+  s0: Browsing the shop
+  s1: Approved, waiting for delivery
+  s2: Waiting for approval
+  s3: Refused (not enough or out of stock)
+  s4: Delivered
+  s5: Cancelled, units refunded
+  s6: Rejected, units refunded
+  [*] --> s0
+  s0 --> s2: member redeems [auto-approval off]
+  s0 --> s1: member redeems [auto-approval on]
+  s0 --> s3: member tries to redeem [not enough units or no stock]
+  s1 --> s4: approver or Pearson Projects marks it delivered
+  s1 --> s5: admin cancels
+  s2 --> s1: approver approves
+  s2 --> s6: approver rejects
+  class s0 blue
+  class s1 orange
+  class s2 orange
+  class s3 teal
+  class s4 teal
+  class s5 teal
+  class s6 teal

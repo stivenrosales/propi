@@ -1,0 +1,35 @@
+---
+title: "Collaborative reward (S56-S59), goal 3"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: collect
+    lg1: wait
+    lg2: end
+  }
+  class lg0 blue
+  class lg1 orange
+  class lg2 teal
+  s0: Collecting (0 of 3)
+  s1: Closed, everyone refunded
+  s2: Collecting (1 of 3)
+  s3: Collecting (2 of 3)
+  s4: Goal reached, group redemption pending
+  s5: Delivered
+  [*] --> s0
+  s0 --> s1: admin archives it or the deadline passes
+  s0 --> s2: a member contributes
+  s0 --> s3: a member contributes
+  s2 --> s1: admin archives it or the deadline passes
+  s2 --> s3: a member contributes
+  s2 --> s4: a member contributes the rest [extra is capped]
+  s3 --> s1: admin archives it or the deadline passes
+  s3 --> s4: a member contributes the rest [extra is capped]
+  s4 --> s1: approver rejects the group redemption
+  s4 --> s5: the reward is delivered
+  class s0 blue
+  class s1 teal
+  class s2 blue
+  class s3 blue
+  class s4 orange
+  class s5 teal

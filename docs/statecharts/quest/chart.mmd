@@ -1,0 +1,28 @@
+---
+title: "Quest and one member's submissions (S64-S68), cap 1"
+---
+stateDiagram-v2
+  direction LR
+  state "At the same time" as all {
+    state "Quest" as r0 {
+      s0: Draft
+      s1: Open
+      s2: Closed
+      [*] --> s0
+      s0 --> s1: admin publishes the quest
+      s1 --> s2: admin closes it or the window ends
+    }
+    --
+    state "Submission" as r1 {
+      s3: Not submitted
+      s4: Approved, units paid
+      s5: Waiting for review
+      s6: Rejected, may resubmit
+      [*] --> s3
+      s3 --> s4: member submits [while Open, no approval required]
+      s3 --> s5: member submits [while Open, approval required]
+      s5 --> s4: approver approves
+      s5 --> s6: approver rejects
+      s6 --> s5: member submits [while Open, approval required]
+    }
+  }
