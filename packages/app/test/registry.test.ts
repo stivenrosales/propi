@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { accept, type CommandBase, type MemberId, type PosInt } from "@propi/core";
-import { createApp, defineHandler, HANDLERS } from "../src/index.ts";
-import { createMemoryPorts } from "../src/testing/index.ts";
+import { createApp, defineHandler, engagementHandlers, HANDLERS } from "../src/index.ts";
+import { createEngagementMemory, createMemoryPorts } from "../src/testing/index.ts";
 import { T0, WS, admin, key, m, setup } from "./setup.ts";
 
 interface PayWelcome extends CommandBase {
@@ -30,5 +30,17 @@ describe("command registry", () => {
 
   test("registering a command type twice is refused", () => {
     expect(() => createApp(createMemoryPorts().ports, { handlers: [HANDLERS[0]!] })).toThrow(/duplicate handler/);
+  });
+
+  test("every module is wired: shop, values and privacy in HANDLERS; engagement handlers join at the composition root without clashes", () => {
+    const types = HANDLERS.map((h) => h.type);
+    expect(new Set(types).size).toBe(types.length);
+    for (const t of ["GiveByMessage", "GrantBonus", "Redeem", "TransitionRedemption", "CreateReward", "UpdateReward", "SetRewardStatus", "Contribute", "TagGiftByReaction", "Uninstall", "DeleteWorkspaceData"]) {
+      expect(types).toContain(t);
+    }
+    const eng = createEngagementMemory(createMemoryPorts());
+    const extra = engagementHandlers(eng.deps).map((h) => h.type);
+    for (const t of ["DefineAwardRule", "EvaluateRule", "DefineQuest", "SubmitQuest", "GiveSticker", "ChooseAvatar", "CelebrateMilestone", "RunPairingRound"]) expect(extra).toContain(t);
+    expect(() => createApp(eng.ports, { handlers: engagementHandlers(eng.deps) })).not.toThrow();
   });
 });

@@ -1,7 +1,7 @@
 // @propi/heytaco — HeyTaco export adapter: parsers, import handlers and the import runner (S101-S105).
 // The mapping rules live in core/migration; this package only reads files and wires the app.
-export * from "../../core/src/migration/index.ts";
-export { planImport as planHeyTacoImport } from "../../core/src/migration/index.ts";
+export * from "@propi/core/migration";
+export { planImport as planHeyTacoImport } from "@propi/core/migration";
 export { unzip } from "./zip.ts";
 export { readXlsxGrid, readXlsxRows, type CellValue } from "./xlsx.ts";
 export { parseCsv, parseCsvGrid } from "./csv.ts";

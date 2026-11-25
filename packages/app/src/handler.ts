@@ -28,8 +28,16 @@ export interface LoadContext {
   readonly now: Instant;
 }
 
+/**
+ * Which instant a command runs at. "live" (the default) uses clock.now(). "command" uses the command's
+ * own `at`: only for history imports (S101-S105), whose entries, gifts and records must keep the time
+ * the source system recorded. Handlers that take this must be restricted to admins or system jobs.
+ */
+export type HandlerClock = "live" | "command";
+
 export interface CommandHandler<C extends CommandBase & { readonly type: string }, S, T> {
   readonly type: C["type"];
+  readonly clock?: HandlerClock;
   /** G4: every lock the command needs, declared up front. Order does not matter; execute sorts them. */
   locks(cmd: C, ctx: LockContext): Promise<readonly LockKey[]> | readonly LockKey[];
   /** Optional: derive the effective command key under the locks (G8 reaction occurrence). Defaults to cmd.key. */
@@ -43,6 +51,7 @@ export interface CommandHandler<C extends CommandBase & { readonly type: string 
 /** A handler with its types erased, as stored in the registry. */
 export interface RegisteredHandler {
   readonly type: string;
+  readonly clock?: HandlerClock;
   locks(cmd: never, ctx: LockContext): Promise<readonly LockKey[]> | readonly LockKey[];
   resolveKey?(cmd: never, tx: Tx, ctx: LoadContext): Promise<CommandKey>;
   load(cmd: never, tx: Tx, ctx: LoadContext): Promise<unknown>;

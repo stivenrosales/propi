@@ -1,5 +1,8 @@
 // Shared primitive types of the domain. Pure TypeScript, no runtime dependencies.
 
+import type { ShopError } from "../shop/types.ts";
+import type { EngagementError } from "../rules/module-decision.ts";
+
 declare const brand: unique symbol;
 export type Brand<T, B extends string> = T & { readonly [brand]: B };
 
@@ -13,6 +16,20 @@ export type ApiTokenId = Brand<string, "ApiTokenId">;
 export type PosInt = Brand<number, "PosInt">;
 export const posInt = (n: number): PosInt | null => (Number.isSafeInteger(n) && n >= 1 ? (n as PosInt) : null);
 export const isPosInt = (n: number): n is PosInt => Number.isSafeInteger(n) && n >= 1;
+
+/**
+ * The largest magnitude one ledger entry may carry. Keeps every amount far from integer overflow in
+ * storage and replay; a decision that would write a bigger entry is refused with `amount_too_large`.
+ * Balances are sums of many entries, so adapters must still sum as 64-bit integers.
+ */
+export const MAX_ENTRY_AMOUNT = 1_000_000;
+export const isEntryAmount = (n: number): n is PosInt => isPosInt(n) && n <= MAX_ENTRY_AMOUNT;
+/** Splits a positive total into entry amounts of at most MAX_ENTRY_AMOUNT each, largest first. */
+export function entryAmounts(total: PosInt): PosInt[] {
+  const out: PosInt[] = [];
+  for (let left = total as number; left > 0; left -= MAX_ENTRY_AMOUNT) out.push(Math.min(left, MAX_ENTRY_AMOUNT) as PosInt);
+  return out;
+}
 
 /** Epoch milliseconds, UTC. */
 export type Instant = Brand<number, "Instant">;
@@ -53,11 +70,14 @@ export type DomainError =
   | { readonly code: "bots_may_not_give" } // S8
   | { readonly code: "forbidden"; readonly need: Role | ApiScope }
   | { readonly code: "invalid_amount" }
+  | { readonly code: "amount_too_large"; readonly max: number } // MAX_ENTRY_AMOUNT
   | { readonly code: "reason_required" } // S37
   | { readonly code: "gift_not_found" }
   | { readonly code: "gift_closed" } // S23, S24, S38: an admin-reversed or deleted gift is final
   | { readonly code: "invalid_currency"; readonly field: "primaryEmoji" | "singular" | "plural" | "extraEmojis" }
-  | { readonly code: "idempotency_key_reused"; readonly originalRequestHash: string }; // G2, S100
+  | { readonly code: "idempotency_key_reused"; readonly originalRequestHash: string } // G2, S100
+  | ShopError
+  | EngagementError;
 
 /** What a decider concludes. The app adds `replayed`. */
 export type Outcome<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: DomainError };

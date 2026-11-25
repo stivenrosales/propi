@@ -1,6 +1,7 @@
 // createApp(ports): the single write entrypoint `execute` plus read-only queries (G2, G3).
 import {
   auditRecord,
+  capEntries,
   dailyLimit,
   localDate,
   orderLocks,
@@ -72,7 +73,8 @@ export function createApp(ports: Ports, options: CreateAppOptions = {}): App {
     const locks = orderLocks(await handler.locks(c, { directory: ports.directory, reader: ports.reader.workspace(ws), settings }));
 
     return ports.uow.run(ws, locks, async (tx) => {
-      const now = ports.clock.now();
+      // Live commands run at the server clock; history imports keep the source timestamp (HandlerClock).
+      const now = handler.clock === "command" ? cmd.at : ports.clock.now();
       const ctx: LoadContext = { directory: ports.directory, ids: ports.ids, settings, now };
       const key = handler.resolveKey ? await handler.resolveKey(c, tx, ctx) : cmd.key;
 
@@ -85,7 +87,7 @@ export function createApp(ports: Ports, options: CreateAppOptions = {}): App {
 
       // 3. Load the snapshot, 4. decide (pure), 5. commit everything atomically.
       const snapshot = await handler.load(c, tx, ctx);
-      const decision = handler.decide(snapshot as never, c, now);
+      const decision = capEntries(handler.decide(snapshot as never, c, now));
       await tx.commit({ key, requestHash: hash, commandType: cmd.type, actor: cmd.actor, at: now, command: cmd, decision });
       return { ...decision.outcome, replayed: false };
     });

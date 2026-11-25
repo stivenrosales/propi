@@ -27,6 +27,7 @@ import {
   type WorkspaceReader,
   type WorkspaceSettings,
 } from "@propi/core";
+import { withShopStore, type ShopStoreOptions } from "./shop.ts";
 
 export interface EventRecord {
   readonly seq: number;
@@ -51,7 +52,7 @@ interface WorkspaceState {
   readonly events: EventRecord[];
 }
 
-export interface MemoryOptions {
+export interface MemoryOptions extends ShopStoreOptions {
   readonly now?: number;
   /** false disables the per-key mutex, to show that the race the locks prevent is real. */
   readonly locking?: boolean;
@@ -219,7 +220,7 @@ export function createMemoryPorts(opts: MemoryOptions = {}) {
     return { tx, rollback };
   }
 
-  const ports: Ports = {
+  const base: Ports = {
     uow: {
       async run(wsId, locks, fn) {
         const s = ws(wsId);
@@ -254,8 +255,14 @@ export function createMemoryPorts(opts: MemoryOptions = {}) {
     },
   };
 
+  const entriesOf = (id: WorkspaceId): readonly LedgerEntry[] => [...ws(id).entries];
+  // The shop store (S44-S59, S104) is part of the memory ports: shop writes commit atomically with the ledger.
+  const shop = withShopStore({ ports: base, entries: entriesOf }, { giftCards: opts.giftCards ?? null });
+
   return {
-    ports,
+    ports: shop.ports,
+    /** The shop records (rewards, redemptions, collabs) for assertions. */
+    shop,
     lockLog,
     clock: {
       set: (instant: number) => void (now = instant as Instant),
@@ -276,7 +283,7 @@ export function createMemoryPorts(opts: MemoryOptions = {}) {
     setValues(id: WorkspaceId, values: readonly Value[]) {
       ws(id).values = values;
     },
-    entries: (id: WorkspaceId): readonly LedgerEntry[] => [...ws(id).entries],
+    entries: entriesOf,
     events: (id: WorkspaceId): readonly EventRecord[] => [...ws(id).events],
     gifts: (id: WorkspaceId): readonly Gift[] => [...ws(id).gifts.values()],
     commandLog: (id: WorkspaceId): readonly CommandLogRecord[] =>

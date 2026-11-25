@@ -68,6 +68,7 @@ This spec defines the business rules of the peer-recognition platform. It does n
   - If an edited message newly qualifies as a gift and no gift exists for it yet, it is processed as a new gift at edit time.
   - If an existing gift message is edited, the gift is recomputed and the difference is applied as a reversal or a top-up, still under the allowance rules.
   - (A3 resolved: recompute on edit.)
+  - An admin-reversed (S38) or same-day-deleted (S24) gift is final: later edits of its message are refused with `gift_closed`.
 - **S24 [NEW]** Deleting a gift message within the same allowance day reverses its gifts and returns the giver's allowance. After that day, the gift stands.
 
 ## 6. Daily allowance
@@ -101,7 +102,7 @@ This spec defines the business rules of the peer-recognition platform. It does n
 
 - **S36 [HT]** **Bonus.** An admin grants N > 0 units to one or many members, with a reason. It is added to redeemable only (S31).
 - **S37 [NEW]** **Deduction.** An admin removes N > 0 units from redeemable, with a mandatory reason.
-- **S38 [NEW]** **Gift reversal.** An admin can reverse a specific gift (abuse, a mistake). It undoes received/given and adjusts redeemable. The giver's allowance is not restored.
+- **S38 [NEW]** **Gift reversal.** An admin can reverse a specific gift (abuse, a mistake). It undoes received/given and adjusts redeemable. The giver's allowance is not restored. A reversed gift is final, like a same-day-deleted one (S24): later edits of its message are refused with `gift_closed`.
 - **S39 [HT]** **Bulk reset.** An admin can reset everyone's redeemable to 0. It is recorded as one deduction entry per member, and `received` and history stay untouched.
 - **S40 [NEW]** Every admin adjustment is listed in an audit log with actor, time and reason.
 

@@ -2,8 +2,10 @@
 // no allowance, no S35 guard, no notifications.
 import { accept, reject, type Decision } from "../shared/decision.ts";
 import type { Actor, Instant } from "../shared/types.ts";
-import { isPosInt } from "../shared/types.ts";
+import { MAX_ENTRY_AMOUNT, isEntryAmount, isPosInt } from "../shared/types.ts";
 import { canAdjust } from "../members/members.ts";
+import { shopAccept, shopEntry, shopReject } from "../shop/rules.ts";
+import type { Redemption, ShopDecision } from "../shop/types.ts";
 import type {
   ImportHeyTacoBonus,
   ImportHeyTacoGift,
@@ -16,6 +18,7 @@ import type {
 function guard<T>(actor: Actor, amount: number): Decision<T> | null {
   if (!canAdjust(actor)) return reject({ code: "forbidden", need: "admin" });
   if (!isPosInt(amount)) return reject({ code: "invalid_amount" });
+  if (!isEntryAmount(amount)) return reject({ code: "amount_too_large", max: MAX_ENTRY_AMOUNT });
   return null;
 }
 
@@ -56,25 +59,39 @@ export function decideImportGift(s: ImportGiftSnapshot, cmd: ImportHeyTacoGift, 
   );
 }
 
-/** S104: an imported redemption spends what HeyTaco recorded and keeps its fulfilled state. */
-export function decideImportRedemption(_s: object, cmd: ImportHeyTacoRedemption, _now: Instant): Decision<ImportedRedemptionResult> {
+/**
+ * S104: an imported redemption spends what HeyTaco recorded and becomes a real shop redemption in the
+ * state HeyTaco recorded (fulfilled, or approved and awaiting fulfilment), so the shop can fulfil or
+ * cancel it later like any other. It has no catalog reward, reserves no stock and counts against no
+ * budget; it keeps HeyTaco's timestamp and emits no notifications.
+ */
+export function decideImportRedemption(_s: object, cmd: ImportHeyTacoRedemption, _now: Instant): ShopDecision<ImportedRedemptionResult> {
   const denied = guard<ImportedRedemptionResult>(cmd.actor, cmd.amount);
-  if (denied) return denied;
-  return accept(
+  if (denied) return shopReject(denied.outcome.ok ? { code: "invalid_amount" } : denied.outcome.error);
+  const cost = cmd.amount as ImportedBonusResult["amount"];
+  const redemption: Redemption = {
+    id: cmd.redemptionId,
+    memberId: cmd.memberId,
+    rewardId: null,
+    variantId: null,
+    collabId: null,
+    cost,
+    internalCost: null,
+    budgetMonth: null,
+    stockReserved: false,
+    giftCard: false,
+    cardIssued: false,
+    onBehalfOf: "self",
+    state: cmd.state,
+    createdAt: cmd.at,
+    updatedAt: cmd.at,
+    reason: cmd.title,
+  };
+  return shopAccept(
     { redemptionId: cmd.redemptionId, state: cmd.state },
     {
-      entries: [
-        {
-          kind: "spend",
-          amount: cmd.amount as ImportedBonusResult["amount"],
-          memberId: cmd.memberId,
-          counterpartId: null,
-          cause: { type: "redemption", redemptionId: cmd.redemptionId },
-          source: null,
-          allowanceDay: null,
-          reason: cmd.title,
-        },
-      ],
+      entries: [shopEntry("spend", cmd.memberId, cost, { type: "redemption", redemptionId: cmd.redemptionId }, cmd.title)],
+      writes: [{ t: "shop.redemption.put", from: null, redemption }],
     },
   );
 }

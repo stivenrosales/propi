@@ -1,6 +1,6 @@
 // Runs an import plan: create the planned members, then execute every command through the app.
 import type { App, MemberRecord, WorkspaceId } from "@propi/app";
-import type { ImportPlan, RedemptionState } from "../../core/src/migration/index.ts";
+import type { ImportPlan, ImportedRedemptionState } from "@propi/core";
 
 /** A member record plus the identities it was matched on (S102, S107). */
 export interface ImportedMember extends MemberRecord {
@@ -21,7 +21,7 @@ export interface ImportRun {
   readonly replayed: number;
   /** Rejections by error code (e.g. invalid_amount, idempotency_key_reused). */
   readonly rejected: Readonly<Record<string, number>>;
-  readonly redemptionStates: Readonly<Record<RedemptionState, number>>;
+  readonly redemptionStates: Readonly<Record<ImportedRedemptionState, number>>;
 }
 
 export async function importHeyTaco(args: { app: App; registrar: MemberRegistrar; workspaceId: WorkspaceId; plan: ImportPlan }): Promise<ImportRun> {
@@ -35,7 +35,7 @@ export async function importHeyTaco(args: { app: App; registrar: MemberRegistrar
   let applied = 0;
   let replayed = 0;
   const rejected: Record<string, number> = {};
-  const redemptionStates: Record<RedemptionState, number> = { fulfilled: 0, approved: 0 };
+  const redemptionStates: Record<ImportedRedemptionState, number> = { fulfilled: 0, approved: 0 };
   for (const cmd of plan.commands) {
     const r = await app.executeAny(cmd);
     if (!r.ok) {
@@ -44,7 +44,7 @@ export async function importHeyTaco(args: { app: App; registrar: MemberRegistrar
     }
     if (r.replayed) replayed++;
     else applied++;
-    if (cmd.type === "ImportHeyTacoRedemption") redemptionStates[(r.value as { state: RedemptionState }).state]++;
+    if (cmd.type === "ImportHeyTacoRedemption") redemptionStates[(r.value as { state: ImportedRedemptionState }).state]++;
   }
   return { membersCreated, applied, replayed, rejected, redemptionStates };
 }

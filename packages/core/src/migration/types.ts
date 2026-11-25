@@ -1,6 +1,7 @@
 // HeyTaco migration: parsed export rows (adapter output), import commands and the import plan (S101-S105).
 import type { CommandBase, GiftId, MemberId, PosInt } from "../shared/types.ts";
 import type { GiftSource } from "../ledger/entries.ts";
+import type { RedemptionState } from "../shop/types.ts";
 
 /** One activity CSV row, with header names already resolved by the adapter. */
 export interface HeyTacoActivityRow {
@@ -69,7 +70,8 @@ export interface PlannedMember {
   readonly isNew: boolean;
 }
 
-export type RedemptionState = "fulfilled" | "approved";
+/** S104: the shop states an imported redemption lands in (HeyTaco Fulfilled 1 -> fulfilled, 0 -> approved). */
+export type ImportedRedemptionState = Extract<RedemptionState, "fulfilled" | "approved">;
 
 const SYSTEM = { kind: "system", job: "import:heytaco" } as const;
 export type ImportActor = typeof SYSTEM;
@@ -94,7 +96,7 @@ export interface ImportHeyTacoRedemption extends CommandBase {
   readonly memberId: MemberId;
   readonly amount: number;
   readonly title: string;
-  readonly state: RedemptionState;
+  readonly state: ImportedRedemptionState;
 }
 
 export interface ImportHeyTacoBonus extends CommandBase {
@@ -146,7 +148,7 @@ export interface ImportedGiftResult {
 }
 export interface ImportedRedemptionResult {
   readonly redemptionId: string;
-  readonly state: RedemptionState;
+  readonly state: ImportedRedemptionState;
 }
 export interface ImportedBonusResult {
   readonly memberId: MemberId;

@@ -1,7 +1,7 @@
 // S101: read a HeyTaco export directory into typed rows. Header names live here, nowhere else.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { HeyTacoActivityRow, HeyTacoExport, HeyTacoFile, HeyTacoRedemptionRow, HeyTacoUserRow } from "../../core/src/migration/index.ts";
+import type { HeyTacoActivityRow, HeyTacoExport, HeyTacoFile, HeyTacoRedemptionRow, HeyTacoUserRow } from "@propi/core";
 import { parseCsv } from "./csv.ts";
 import { readXlsxRows, type CellValue } from "./xlsx.ts";
 

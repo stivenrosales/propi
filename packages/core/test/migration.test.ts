@@ -303,3 +303,69 @@ describe("S103 G9 reconciliation", () => {
     expect(reconcileImport(plan, balances, { ...counts, secondImportAdded: 1 }).ok).toBe(false);
   });
 });
+
+describe("S104 imported redemptions are shop redemptions", () => {
+  const cmd = (over: Partial<ImportHeyTacoRedemption> = {}): ImportHeyTacoRedemption => ({
+    type: "ImportHeyTacoRedemption",
+    key: "import:heytaco:redemption:1" as never,
+    workspaceId: WS,
+    actor: system,
+    at: Date.UTC(2025, 2, 3, 14, 0, 0) as Instant,
+    redemptionId: "rd-1",
+    memberId: "ana" as MemberId,
+    amount: 40,
+    title: "Gift card",
+    state: "approved",
+    ...over,
+  });
+
+  test("S104: the decision spends the amount and writes the redemption record in HeyTaco's state, at HeyTaco's time", () => {
+    for (const state of ["approved", "fulfilled"] as const) {
+      const d = decideImportRedemption({}, cmd({ state }), 0 as Instant);
+      expect(d.outcome).toEqual({ ok: true, value: { redemptionId: "rd-1", state } });
+      expect(d.entries).toEqual([
+        { kind: "spend", amount: 40, memberId: "ana", counterpartId: null, cause: { type: "redemption", redemptionId: "rd-1" }, source: null, allowanceDay: null, reason: "Gift card" },
+      ]);
+      expect(d.writes).toEqual([
+        {
+          t: "shop.redemption.put",
+          from: null,
+          redemption: {
+            id: "rd-1",
+            memberId: "ana",
+            rewardId: null,
+            variantId: null,
+            collabId: null,
+            cost: 40,
+            internalCost: null,
+            budgetMonth: null,
+            stockReserved: false,
+            giftCard: false,
+            cardIssued: false,
+            onBehalfOf: "self",
+            state,
+            createdAt: Date.UTC(2025, 2, 3, 14, 0, 0),
+            updatedAt: Date.UTC(2025, 2, 3, 14, 0, 0),
+            reason: "Gift card",
+          },
+        },
+      ]);
+      expect(d.events).toEqual([]);
+    }
+  });
+
+  test("S104: a non-positive or oversized amount and a non-admin actor are refused and write nothing", () => {
+    expect(decideImportRedemption({}, cmd({ amount: 0 }), 0 as Instant)).toEqual({ outcome: { ok: false, error: { code: "invalid_amount" } }, entries: [], writes: [], events: [] });
+    expect(decideImportRedemption({}, cmd({ amount: 1_000_001 }), 0 as Instant).outcome).toEqual({ ok: false, error: { code: "amount_too_large", max: 1_000_000 } });
+    expect(decideImportRedemption({}, cmd({ actor: { kind: "member", memberId: "ana" as MemberId, role: "member" } }), 0 as Instant).outcome).toEqual({ ok: false, error: { code: "forbidden", need: "admin" } });
+  });
+});
+
+test("S101: the migration module is exported from @propi/core's entrypoint", async () => {
+  const core = await import("../src/index.ts");
+  const migration = await import("../src/migration/index.ts");
+  expect(core.planImport).toBe(migration.planImport);
+  expect(core.decideImportRedemption).toBe(migration.decideImportRedemption);
+  expect(core.reconcileImport).toBe(migration.reconcileImport);
+  expect(core.HEYTACO_EXPORT_TIMEZONE).toBe("America/Bogota");
+});

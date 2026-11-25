@@ -4,5 +4,20 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "exports": { ".": "./src/index.ts" }
+  "exports": {
+    ".": "./src/index.ts",
+    "./rules": "./src/rules/index.ts",
+    "./quests": "./src/quests/index.ts",
+    "./stickers": "./src/stickers/index.ts",
+    "./levels": "./src/levels/index.ts",
+    "./milestones": "./src/milestones/index.ts",
+    "./pairing": "./src/pairing/index.ts",
+    "./boards": "./src/boards/index.ts",
+    "./notify": "./src/notify/index.ts",
+    "./insights": "./src/insights/index.ts",
+    "./privacy": "./src/privacy/index.ts",
+    "./values": "./src/values/index.ts",
+    "./shop": "./src/shop/index.ts",
+    "./migration": "./src/migration/index.ts"
+  }
 }

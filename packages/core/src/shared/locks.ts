@@ -4,6 +4,7 @@ export type LockKey =
   | `gift:${string}`
   | `redemption:${string}`
   | `collab:${string}`
+  | `quest:${string}`
   | `budget:${string}`
   | `prepaid:${string}`
   | `member:${string}`;
@@ -12,6 +13,7 @@ const RANK: Readonly<Record<string, number>> = {
   gift: 0,
   redemption: 0,
   collab: 0,
+  quest: 0,
   budget: 1,
   prepaid: 1,
   member: 2,

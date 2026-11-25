@@ -12,7 +12,7 @@ import {
   type ImportPlan,
   type KnownIdentity,
   type PlannedMember,
-  type RedemptionState,
+  type ImportedRedemptionState,
 } from "./types.ts";
 import { zonedLocalToInstant } from "./zoned.ts";
 
@@ -33,7 +33,7 @@ const normEmail = (e: string) => e.trim().toLowerCase();
 const SOURCES: readonly GiftSource[] = ["message", "reaction", "sticker"];
 
 /** S104: HeyTaco's Fulfilled flag. 1 -> fulfilled, 0 -> approved (awaiting fulfilment). */
-export function redemptionState(flag: boolean | number | string): RedemptionState {
+export function redemptionState(flag: boolean | number | string): ImportedRedemptionState {
   const v = typeof flag === "string" ? flag.trim().toLowerCase() : flag;
   if (v === true || v === 1 || v === "1" || v === "true") return "fulfilled";
   if (v === false || v === 0 || v === "0" || v === "false") return "approved";

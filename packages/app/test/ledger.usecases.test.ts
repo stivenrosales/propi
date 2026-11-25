@@ -114,3 +114,37 @@ describe("admin adjustments through the app", () => {
     expect([0, -2]).toContain(b.redeemable);
   });
 });
+
+describe("entry amount cap (MAX_ENTRY_AMOUNT)", () => {
+  test("S36: two 2e9 bonuses are refused with amount_too_large and write nothing, so no balance can overflow", async () => {
+    const { app, mem } = setup();
+    for (const k of ["api:big:1", "api:big:2"]) {
+      expect(await app.execute(bonus(k, ["ana"], 2_000_000_000))).toEqual({ ok: false, replayed: false, error: { code: "amount_too_large", max: 1_000_000 } });
+    }
+    expect(mem.entries(WS)).toEqual([]);
+    expect(await app.balances(WS, m("ana"))).toEqual({ received: 0, given: 0, redeemable: 0 });
+    // The refusal is stored under its key like any other result (G2).
+    expect(mem.commandLog(WS).map((r) => r.result)).toEqual([
+      { ok: false, error: { code: "amount_too_large", max: 1_000_000 } },
+      { ok: false, error: { code: "amount_too_large", max: 1_000_000 } },
+    ]);
+  });
+
+  test("S30: createApp refuses any handler's decision with an entry above the cap, before commit", async () => {
+    const { createApp, defineHandler, accept } = await import("../src/index.ts");
+    const { mem } = setup();
+    const huge = defineHandler<{ type: "PayHuge"; key: ReturnType<typeof key>; workspaceId: typeof WS; actor: typeof admin; at: typeof T0 }, null, { paid: number }>({
+      type: "PayHuge",
+      locks: () => [`member:${m("ana")}`],
+      load: async () => null,
+      decide: () => accept({ paid: 3_000_000 }, { entries: [{ kind: "bonus", amount: 3_000_000 as PosInt, memberId: m("ana"), counterpartId: null, cause: { type: "admin" }, source: null, allowanceDay: null, reason: "plugin" }] }),
+    });
+    const app = createApp(mem.ports, { handlers: [huge] });
+    expect(await app.executeAny({ type: "PayHuge", key: key("plugin:1"), workspaceId: WS, actor: admin, at: T0 })).toEqual({
+      ok: false,
+      replayed: false,
+      error: { code: "amount_too_large", max: 1_000_000 },
+    });
+    expect(mem.entries(WS)).toEqual([]);
+  });
+});

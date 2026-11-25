@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 import {
+  MAX_ENTRY_AMOUNT,
+  accept,
   auditRecord,
+  capEntries,
   decideDeduct,
   decideGrantBonus,
   decideResetAll,
@@ -120,5 +123,42 @@ describe("admin adjustments", () => {
     ).toEqual({ key: "api:t:2", action: "deduction", actor, at: NOON_LIMA, reason: "duplicate payout", ok: true });
     expect(auditRecord({ key: "k" as CommandKey, commandType: "GiveByMessage", actor, at: NOON_LIMA, command: {}, result: { ok: true, value: {} } })).toBeNull();
     expect(record("x").role).toBe("member");
+  });
+
+  test("S36: a bonus bigger than MAX_ENTRY_AMOUNT (1,000,000) per entry is refused with amount_too_large", () => {
+    expect(MAX_ENTRY_AMOUNT).toBe(1_000_000);
+    expect(decideGrantBonus({ knownMembers: known }, bonus({ amount: MAX_ENTRY_AMOUNT as PosInt }), NOON_LIMA).outcome.ok).toBe(true);
+    const huge = decideGrantBonus({ knownMembers: known }, bonus({ amount: 2_000_000_000 as PosInt }), NOON_LIMA);
+    expect(huge).toEqual({ outcome: { ok: false, error: { code: "amount_too_large", max: 1_000_000 } }, entries: [], writes: [], events: [] });
+  });
+
+  test("S37: a deduction bigger than MAX_ENTRY_AMOUNT is refused with amount_too_large", () => {
+    expect(decideDeduct({ knownMembers: known }, deduct({ amount: (MAX_ENTRY_AMOUNT + 1) as PosInt }), NOON_LIMA).outcome).toEqual({
+      ok: false,
+      error: { code: "amount_too_large", max: MAX_ENTRY_AMOUNT },
+    });
+  });
+
+  test("S39: a reset of a redeemable above MAX_ENTRY_AMOUNT splits into capped deductions that sum to it", () => {
+    const redeemable = new Map<MemberId, number>([[m("ana"), 2 * MAX_ENTRY_AMOUNT + 5]]);
+    const d = decideResetAll({ redeemable }, { type: "ResetAllRedeemable", key: key("api:t:6"), workspaceId: WS, actor: admin, at: NOON_LIMA, reason: "new year" }, NOON_LIMA);
+    expect(d.outcome).toEqual({ ok: true, value: { members: 1, total: 2 * MAX_ENTRY_AMOUNT + 5 } });
+    expect(d.entries.map((e) => [e.kind, e.memberId, e.amount])).toEqual([
+      ["deduction", "ana", MAX_ENTRY_AMOUNT],
+      ["deduction", "ana", MAX_ENTRY_AMOUNT],
+      ["deduction", "ana", 5],
+    ]);
+  });
+
+  test("S30: capEntries refuses any decision that would write an entry above MAX_ENTRY_AMOUNT, whatever module made it", () => {
+    const entry = (amount: number) => ({ kind: "bonus" as const, amount: amount as PosInt, memberId: m("ana"), counterpartId: null, cause: { type: "admin" as const }, source: null, allowanceDay: null, reason: "x" });
+    const fine = accept({ ok: 1 }, { entries: [entry(MAX_ENTRY_AMOUNT)] });
+    expect(capEntries(fine)).toBe(fine);
+    expect(capEntries(accept({ ok: 1 }, { entries: [entry(1), entry(MAX_ENTRY_AMOUNT + 1)] }))).toEqual({
+      outcome: { ok: false, error: { code: "amount_too_large", max: MAX_ENTRY_AMOUNT } },
+      entries: [],
+      writes: [],
+      events: [],
+    });
   });
 });

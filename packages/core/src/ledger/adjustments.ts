@@ -1,7 +1,7 @@
 // S35-S40: admin adjustments as pure deciders.
 import { accept, reject, type Decision } from "../shared/decision.ts";
 import type { Actor, CommandKey, GiftId, Instant, MemberId, Outcome, PosInt } from "../shared/types.ts";
-import { isPosInt } from "../shared/types.ts";
+import { MAX_ENTRY_AMOUNT, entryAmounts, isEntryAmount, isPosInt } from "../shared/types.ts";
 import { canAdjust } from "../members/members.ts";
 import type { Gift } from "../giving/types.ts";
 import type { NewEntry } from "./entries.ts";
@@ -22,6 +22,7 @@ function guard<T>(actor: Actor, reason: string, amount: number | null): Decision
   if (!canAdjust(actor)) return reject({ code: "forbidden", need: "admin" });
   if (reason.trim() === "") return reject({ code: "reason_required" });
   if (amount !== null && !isPosInt(amount)) return reject({ code: "invalid_amount" });
+  if (amount !== null && !isEntryAmount(amount)) return reject({ code: "amount_too_large", max: MAX_ENTRY_AMOUNT });
   return null;
 }
 
@@ -100,18 +101,22 @@ export interface ResetSnapshot {
   readonly redeemable: ReadonlyMap<MemberId, number>;
 }
 
-/** S39: one deduction of exactly the positive redeemable per member; received and history untouched. */
+/**
+ * S39: one deduction of exactly the positive redeemable per member; received and history untouched.
+ * A redeemable above MAX_ENTRY_AMOUNT is deducted in several capped entries that sum to it.
+ */
 export function decideResetAll(s: ResetSnapshot, cmd: ResetAllRedeemable, _now: Instant): Decision<{ members: number; total: number }> {
   const denied = guard<{ members: number; total: number }>(cmd.actor, cmd.reason, null);
   if (denied) return denied;
   const entries: NewEntry[] = [];
   for (const [memberId, redeemable] of [...s.redeemable].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-    if (isPosInt(redeemable)) entries.push(adminEntry("deduction", memberId, redeemable, cmd.reason));
+    if (isPosInt(redeemable)) for (const amount of entryAmounts(redeemable)) entries.push(adminEntry("deduction", memberId, amount, cmd.reason));
   }
   const total = entries.reduce((t, e) => t + e.amount, 0);
+  const memberIds = [...new Set(entries.map((e) => e.memberId))];
   return accept(
-    { members: entries.length, total },
-    { entries, events: [{ type: "adjustment.made", kind: "reset", memberIds: entries.map((e) => e.memberId), amount: total, reason: cmd.reason }] },
+    { members: memberIds.length, total },
+    { entries, events: [{ type: "adjustment.made", kind: "reset", memberIds, amount: total, reason: cmd.reason }] },
   );
 }
 
