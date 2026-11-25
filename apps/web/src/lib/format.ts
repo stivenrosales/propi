@@ -24,7 +24,12 @@ export function memberDirectory(members: readonly { readonly id: string; readonl
 
 /** Gift text as people read it: Slack-style `<@member>` mentions become "@Name". */
 export function readableText(text: string, label: (id: string) => string = memberLabel): string {
-  return text.replace(/<@([^>|]+)(?:\|[^>]*)?>/g, (_, id: string) => `@${label(id)}`);
+  return text
+    .replace(/<@([^>|]+)(?:\|[^>]*)?>/g, (_, id: string) => `@${label(id)}`)
+    // Slack emoji codes (:propi:, :+1::skin-tone-2:) are noise outside Slack.
+    .replace(/:[a-z0-9_+'-]*[a-z_+'-][a-z0-9_+'-]*:/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function initials(label: string): string {

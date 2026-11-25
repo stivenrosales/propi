@@ -120,8 +120,8 @@ export default async function Settings({ searchParams }: { searchParams: Promise
               <Field label="Monthly budget (cents)" hint="Empty for no budget">
                 <Input name="budgetMinor" type="number" min={0} defaultValue={shop.monthlyBudget?.minor ?? ""} />
               </Field>
-              <Field label="Currency" hint="ISO code, e.g. USD, PEN">
-                <Input name="budgetCurrency" defaultValue={shop.monthlyBudget?.currency ?? "USD"} maxLength={3} />
+              <Field label="Currency" hint="ISO code, for example PEN">
+                <Input name="budgetCurrency" defaultValue={shop.monthlyBudget?.currency ?? ""} placeholder="PEN" maxLength={3} />
               </Field>
               <Button className="justify-self-start">Save</Button>
             </form>
@@ -165,7 +165,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           </form>
         </Card>
 
-        <Card className="bg-ink text-cream">
+        <Card className="self-start bg-ink text-cream">
           <CardTitle>
             <span className="text-cream">TV mode</span>
           </CardTitle>

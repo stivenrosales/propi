@@ -18,5 +18,5 @@ const TONE = {
 
 /** A lifecycle state as a colored pill (S45, S49, S58, S65, S66). */
 export function StateBadge({ state }: { state: string }) {
-  return <Badge tone={TONE[state as keyof typeof TONE] ?? "muted"}>{state}</Badge>;
+  return <Badge tone={TONE[state as keyof typeof TONE] ?? "muted"}>{state.charAt(0).toUpperCase() + state.slice(1)}</Badge>;
 }

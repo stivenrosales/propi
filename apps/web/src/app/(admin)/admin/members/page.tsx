@@ -37,7 +37,7 @@ export default async function Members({ searchParams }: { searchParams: Promise<
                     <input type="hidden" name="memberId" value={m.id} />
                   </form>
                   <div className="flex items-center gap-3">
-                    <Avatar id={m.id} label={w.label(m.id)} size="sm" />
+                    <Avatar id={m.id} label={w.label(m.id)} src={w.avatar(m.id)} size="sm" />
                     <div>
                       <p className="font-semibold">{w.label(m.id)}</p>
                       <p className="text-xs text-ink-soft">{m.id}</p>

@@ -100,7 +100,7 @@ export default async function Quests({ searchParams }: { searchParams: Promise<R
                           {timeline.map((s) => (
                             <li key={s.id} className="rounded-2xl bg-cream/60 p-3">
                               <div className="flex items-center gap-2 text-sm font-semibold">
-                                <Avatar id={s.memberId} label={w.label(s.memberId)} size="sm" /> {w.label(s.memberId)} completed it
+                                <Avatar id={s.memberId} label={w.label(s.memberId)} src={w.avatar(s.memberId)} size="sm" /> {w.label(s.memberId)} completed it
                               </div>
                               <form action={commentQuestAction} className="mt-2 flex gap-2">
                                 <KeyInput value={formKey()} />

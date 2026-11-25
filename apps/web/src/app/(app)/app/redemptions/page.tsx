@@ -19,7 +19,7 @@ export default async function MyRedemptions() {
       <PageHeader title="My redemptions" eyebrow="Shop" />
       {mine.length === 0 ? (
         <Empty title="No redemptions yet" art="/brand/mascot-gift.webp">
-          Pick something nice in the <a href="/app/shop" className="font-semibold text-coral underline">shop</a>.
+          Pick something nice in the <a href="/app/shop" className="font-semibold text-coral-ink underline">shop</a>.
         </Empty>
       ) : (
         <div className="grid gap-4">

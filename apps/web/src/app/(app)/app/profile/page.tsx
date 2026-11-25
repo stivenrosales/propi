@@ -148,8 +148,10 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
                     <form action={setPreferenceAction}>
                       <input type="hidden" name="type" value={t} />
                       <input type="hidden" name="on" value={on ? "false" : "true"} />
-                      <button role="switch" aria-checked={on} aria-label={PREF_LABEL[t] ?? t} className={`relative h-7 w-12 rounded-full border-2 border-ink transition-colors ${on ? "bg-mint" : "bg-cream-deep"}`}>
-                        <span className={`absolute top-0.5 size-5 rounded-full border-2 border-ink bg-white transition-all ${on ? "left-[1.4rem]" : "left-0.5"}`} />
+                      <button role="switch" aria-checked={on} aria-label={PREF_LABEL[t] ?? t} className="grid min-h-11 min-w-14 place-items-center">
+                        <span className={`relative block h-7 w-12 rounded-full border-2 border-ink transition-colors ${on ? "bg-mint" : "bg-cream-deep"}`}>
+                          <span className={`absolute top-0.5 left-0.5 size-5 rounded-full border-2 border-ink bg-white transition-transform duration-200 ease-[var(--ease-out-expo)] motion-reduce:transition-none ${on ? "translate-x-5" : ""}`} />
+                        </span>
                       </button>
                     </form>
                   </li>

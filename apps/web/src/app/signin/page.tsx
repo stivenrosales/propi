@@ -38,12 +38,12 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
           <img src="/brand/propi-logo.svg" alt="Propi" className="h-11 w-auto" />
         </a>
         <div className="relative rounded-[2rem] border-2 border-ink bg-white p-7 shadow-chunky">
-          <img src="/brand/mascot-wave.webp" alt="" className="bob absolute -top-14 -right-6 w-24" />
+          <img src="/brand/mascot-wave.webp" alt="" className="bob absolute -top-14 right-2 w-24 sm:-right-6" />
           <h1 className="font-display text-3xl font-black tracking-tight">Welcome back</h1>
           <p className="mt-2 text-ink-soft">Sign in with the Slack account you use with Propi.</p>
           {error ? <p role="alert" className="mt-4 rounded-2xl bg-coral-soft px-4 py-3 text-sm font-semibold">{error}</p> : null}
           <a
-            href="/auth/slack"
+            href={slack ? "/auth/slack" : undefined}
             aria-disabled={!slack}
             className={`lift mt-6 flex min-h-12 items-center justify-center gap-3 rounded-full border-2 border-ink bg-ink px-6 font-display text-lg font-extrabold text-cream shadow-sticker ${slack ? "" : "pointer-events-none opacity-50"}`}
           >
@@ -51,7 +51,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
           </a>
           {dev ? (
             <form action="/auth/dev" method="post" className="mt-8 border-t border-dashed border-line pt-6">
-              <p className="mb-3 font-display text-sm font-extrabold tracking-wide text-coral uppercase">Dev login</p>
+              <p className="mb-3 font-display text-sm font-extrabold tracking-wide text-coral-ink uppercase">Dev login</p>
               <input type="hidden" name="next" value={sp.next ?? "/app"} />
               {dev.length === 0 ? (
                 <p className="text-sm text-ink-soft">No workspaces yet. Run the demo seed first.</p>

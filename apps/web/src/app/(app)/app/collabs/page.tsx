@@ -55,7 +55,7 @@ export default async function Collabs({ searchParams }: { searchParams: Promise<
                 <div className="mt-4 flex items-center gap-2">
                   <div className="flex -space-x-2">
                     {progress.contributors.slice(0, 6).map((c) => (
-                      <Avatar key={c.memberId} id={c.memberId} label={w.label(c.memberId)} size="sm" />
+                      <Avatar key={c.memberId} id={c.memberId} label={w.label(c.memberId)} src={w.avatar(c.memberId)} size="sm" />
                     ))}
                   </div>
                   <span className="text-sm text-ink-soft">{progress.contributors.length} contributors{mine > 0 ? ` · you gave ${mine}` : ""}</span>

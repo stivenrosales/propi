@@ -21,6 +21,6 @@ function glyph(categories: readonly string[], title: string) {
 export function RewardArt({ id, image, categories, title, className = "h-36" }: { id: string; image: string | null; categories: readonly string[]; title: string; className?: string }) {
   let h = 0;
   for (const ch of id) h = (h * 33 + ch.charCodeAt(0)) >>> 0;
-  if (image) return <img src={image} alt="" className={`w-full rounded-2xl object-cover ${className}`} />;
+  if (image) return <img src={image} alt="" loading="lazy" className={`w-full rounded-2xl object-cover ${className}`} />;
   return <div className={`grid w-full place-items-center rounded-2xl ${TINTS[h % TINTS.length]} ${className}`}>{glyph(categories, title)}</div>;
 }

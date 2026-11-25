@@ -47,7 +47,7 @@ export default async function Tv({ searchParams }: { searchParams: Promise<Recor
             {tv.leaderboard.map((r) => (
               <li key={r.memberId} className={`flex items-center gap-4 rounded-3xl px-5 py-4 ${r.rank === 1 ? "bg-sunflower text-ink" : "bg-ink-raised"}`}>
                 <span className="w-10 text-center font-display text-3xl font-black">{r.rank === 1 ? <Crown className="mx-auto size-8" fill="currentColor" /> : r.rank}</span>
-                <Avatar id={r.memberId} label={w.label(r.memberId)} size="lg" />
+                <Avatar id={r.memberId} label={w.label(r.memberId)} src={w.avatar(r.memberId)} size="lg" />
                 <span className="min-w-0 flex-1 truncate font-display text-2xl font-extrabold">{w.label(r.memberId)}</span>
                 <span className="inline-flex items-center gap-2 font-display text-3xl font-black tabular-nums"><Coin className="size-8" />{r.score}</span>
               </li>
@@ -60,7 +60,7 @@ export default async function Tv({ searchParams }: { searchParams: Promise<Recor
             {tv.feed.map((g) => (
               <li key={g.giftId} className="rounded-3xl bg-cream p-5 text-ink">
                 <div className="flex items-center gap-3">
-                  <Avatar id={g.giver} label={w.label(g.giver)} />
+                  <Avatar id={g.giver} label={w.label(g.giver)} src={w.avatar(g.giver)} />
                   <p className="min-w-0 flex-1 text-lg">
                     <strong>{w.label(g.giver)}</strong> → <strong>{g.receivers.map((r) => w.label(r.memberId)).join(", ")}</strong>
                   </p>

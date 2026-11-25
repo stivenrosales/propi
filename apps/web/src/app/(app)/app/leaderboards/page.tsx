@@ -33,7 +33,7 @@ export default async function Leaderboards({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Leaderboards" eyebrow="Who's lifting the team" />
       <Card className="mb-5">
-        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto] lg:items-end">
+        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
           <Field label="Board">
             <Select name="board" defaultValue={board}>
               {visible.map((b) => (
@@ -47,12 +47,6 @@ export default async function Leaderboards({ searchParams }: { searchParams: Pro
                 <option key={t} value={t}>{t === "all" ? "All time" : t === "custom" ? "Custom range" : t[0]!.toUpperCase() + t.slice(1)}</option>
               ))}
             </Select>
-          </Field>
-          <Field label="From / to" hint="For a custom range">
-            <div className="flex gap-1">
-              <Input type="date" name="from" defaultValue={timeframe.kind === "custom" ? timeframe.from : ""} aria-label="From" />
-              <Input type="date" name="to" defaultValue={timeframe.kind === "custom" ? timeframe.to : ""} aria-label="To" />
-            </div>
           </Field>
           <Field label="Channel">
             <Select name="channel" defaultValue={channelId ?? ""}>
@@ -70,7 +64,13 @@ export default async function Leaderboards({ searchParams }: { searchParams: Pro
               ))}
             </Select>
           </Field>
-          <Button tone="ink">Apply</Button>
+          <Field label="From" hint="Custom range only">
+            <Input type="date" name="from" defaultValue={timeframe.kind === "custom" ? timeframe.from : ""} />
+          </Field>
+          <Field label="To" hint="Custom range only">
+            <Input type="date" name="to" defaultValue={timeframe.kind === "custom" ? timeframe.to : ""} />
+          </Field>
+          <Button tone="ink" className="self-end sm:col-span-2 sm:justify-self-start lg:mb-[1.375rem]">Apply</Button>
         </form>
       </Card>
       <Card>
@@ -83,17 +83,17 @@ export default async function Leaderboards({ searchParams }: { searchParams: Pro
             {rows.value.map((r) => (
               <li key={r.memberId} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 md:gap-4 md:px-4 ${r.rank === 1 ? "bg-sunflower-soft" : r.memberId === viewer.memberId ? "bg-coral-soft" : "hover:bg-cream/70"}`}>
                 <span className="grid w-8 place-items-center font-display text-lg font-black text-ink-soft">
-                  {r.rank <= 3 ? <Crown className={`size-6 ${CROWN[r.rank - 1]}`} fill="currentColor" aria-label={`Rank ${r.rank}`} /> : r.rank}
+                  {r.rank <= 3 ? <Crown className={`size-6 ${CROWN[r.rank - 1]}`} fill="currentColor" stroke="var(--ink)" strokeWidth={1.5} aria-label={`Rank ${r.rank}`} /> : r.rank}
                 </span>
-                <Avatar id={r.memberId} label={w.label(r.memberId)} />
-                <span className="min-w-0 flex-1 truncate font-semibold">
-                  {w.label(r.memberId)}
-                  {r.memberId === viewer.memberId ? <span className="ml-2 text-xs text-coral">you</span> : null}
+                <Avatar id={r.memberId} label={w.label(r.memberId)} src={w.avatar(r.memberId)} />
+                <span className="flex min-w-0 flex-1 items-center gap-2 font-semibold">
+                  <span className="truncate">{w.label(r.memberId)}</span>
+                  {r.memberId === viewer.memberId ? <span className="shrink-0 text-xs text-coral-ink">you</span> : null}
                 </span>
                 <span className="hidden text-xs text-ink-soft sm:inline">
                   {r.received} in · {r.given} out
                 </span>
-                <span className="rounded-full bg-white px-3 py-1 shadow-[inset_0_0_0_1px_var(--line)]">
+                <span className="inline-flex min-w-16 justify-center rounded-full bg-white px-3 py-1 shadow-[inset_0_0_0_1px_var(--line)]">
                   <Units n={r.score} />
                 </span>
               </li>

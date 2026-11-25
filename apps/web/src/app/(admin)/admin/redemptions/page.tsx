@@ -19,7 +19,7 @@ function Move({ id, transition, label, tone, icon, reason = false }: { id: strin
       <input type="hidden" name="redemptionId" value={id} />
       <input type="hidden" name="transition" value={transition} />
       {reason ? <Input name="reason" placeholder="Reason (optional)" aria-label="Reason" className="h-9 min-h-9 w-40 text-sm" /> : null}
-      <Button size="sm" tone={tone}>
+      <Button size="sm" tone={tone} confirm={tone === "danger" ? `${label}? Click again` : undefined}>
         {icon} {label}
       </Button>
     </form>
@@ -49,7 +49,7 @@ export default async function RedemptionQueue({ searchParams }: { searchParams: 
         <div className="min-w-0 flex-1">
           <p className="font-display text-base font-extrabold">{title(r)}</p>
           <p className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-            {r.memberId ? <Avatar id={r.memberId} label={who(r)} size="sm" /> : null}
+            {r.memberId ? <Avatar id={r.memberId} label={who(r)} src={w.avatar(r.memberId)} size="sm" /> : null}
             {who(r)} · {formatDate(r.createdAt, w.settings.timezone, true)}
             {typeof r.onBehalfOf === "object" && "admin" in r.onBehalfOf ? <Badge>on behalf</Badge> : null}
           </p>
@@ -105,7 +105,7 @@ export default async function RedemptionQueue({ searchParams }: { searchParams: 
                   actions={
                     <>
                       <Move id={r.id} transition="fulfil" label="Mark fulfilled" tone="coral" icon={<PackageCheck className="size-4" />} />
-                      <Move id={r.id} transition="cancel" label="Cancel" tone="cream" icon={<Undo2 className="size-4" />} reason />
+                      <Move id={r.id} transition="cancel" label="Cancel" tone="danger" icon={<Undo2 className="size-4" />} reason />
                     </>
                   }
                 />

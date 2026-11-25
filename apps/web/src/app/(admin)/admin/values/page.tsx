@@ -27,8 +27,8 @@ export default async function Values({ searchParams }: { searchParams: Promise<R
             <div key={v.id || `new-${i}`} className="grid gap-2 rounded-2xl bg-cream/50 p-2 sm:grid-cols-3 sm:bg-transparent sm:p-0">
               <input type="hidden" name="id" value={v.id} />
               <Input name="name" defaultValue={v.name} placeholder={v.id ? "" : "New value"} aria-label="Name" />
-              <Input name="hashtag" defaultValue={v.hashtag ?? ""} placeholder="#ownership" aria-label="Hashtag" />
-              <Input name="emoji" defaultValue={v.emoji ?? ""} placeholder=":muscle:" aria-label="Emoji" />
+              <Input name="hashtag" defaultValue={v.hashtag ?? ""} placeholder={v.id ? "" : "#hashtag"} aria-label="Hashtag" />
+              <Input name="emoji" defaultValue={v.emoji ?? ""} placeholder={v.id ? "" : ":emoji:"} aria-label="Emoji" />
             </div>
           ))}
           <Button className="justify-self-start">Save values</Button>

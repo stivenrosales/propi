@@ -18,7 +18,7 @@ export default async function Stickers({ searchParams }: { searchParams: Promise
     <>
       <PageHeader title="Stickers" eyebrow="Admin">
         <Badge tone={config.enabled ? "mint" : "muted"}>{config.enabled ? "Module on" : "Module off"}</Badge>
-        <a href="/admin/settings" className="text-sm font-semibold text-coral hover:underline">Turn on or off</a>
+        <a href="/admin/settings" className="text-sm font-semibold text-coral-ink hover:underline">Turn on or off</a>
       </PageHeader>
       <Flash ok={sp.ok} error={sp.error} />
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -34,7 +34,7 @@ export default async function Stickers({ searchParams }: { searchParams: Promise
                     {s.image ? <img src={s.image} alt="" className="size-12 rounded-xl" /> : <span className="grid size-12 place-items-center rounded-xl bg-sunflower-soft"><Sticker className="size-6" /></span>}
                     <span className="flex-1">
                       <span className="block font-display font-extrabold">{s.name}</span>
-                      <span className="text-xs text-ink-soft">{s.receivers === "channel" ? "Whole channel" : `${s.receivers} people`} × {s.unitsPerReceiver} · {s.monthlyQuota}/month</span>
+                      <span className="text-xs text-ink-soft">{s.receivers === "channel" ? "Whole channel" : `${s.receivers} ${s.receivers === 1 ? "person" : "people"}`} × {s.unitsPerReceiver} · {s.monthlyQuota}/month</span>
                     </span>
                     {s.active ? null : <Badge>paused</Badge>}
                   </summary>

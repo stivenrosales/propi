@@ -26,7 +26,7 @@ export default async function ApiAdmin({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHeader title="API & webhooks" eyebrow="Admin">
-        <a href="https://github.com/stivenrosales/propi/blob/main/docs/api.md" className="text-sm font-semibold text-coral hover:underline" target="_blank" rel="noreferrer">API docs</a>
+        <a href="https://github.com/stivenrosales/propi/blob/main/docs/api.md" className="text-sm font-semibold text-coral-ink hover:underline" target="_blank" rel="noreferrer">API docs</a>
       </PageHeader>
       <Flash ok={sp.ok} error={sp.error ?? (unavailable ? `API features are unavailable: ${unavailable}` : undefined)} />
       <div className="grid gap-5 xl:grid-cols-2">
@@ -47,7 +47,7 @@ export default async function ApiAdmin({ searchParams }: { searchParams: Promise
                     ) : (
                       <form action={revokeTokenAction}>
                         <input type="hidden" name="tokenId" value={t.id} />
-                        <Button size="sm" tone="danger">Revoke</Button>
+                        <Button size="sm" tone="danger" confirm="Revoke? Click again">Revoke</Button>
                       </form>
                     )}
                   </Td>

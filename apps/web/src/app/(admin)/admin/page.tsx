@@ -36,7 +36,7 @@ export default async function Insights({ searchParams }: { searchParams: Promise
   const valueName = new Map(valueNames.map((v) => [v.id, v.name]));
   const byValue = new Map<string, { memberId: string; units: number }[]>();
   for (const r of values) byValue.set(r.valueId, [...(byValue.get(r.valueId) ?? []), { memberId: r.memberId, units: r.units }]);
-  const cur = shopSettings.monthlyBudget?.currency ?? "USD";
+  const cur = shopSettings.monthlyBudget?.currency ?? "";
 
   return (
     <>
@@ -57,7 +57,7 @@ export default async function Insights({ searchParams }: { searchParams: Promise
         <Stat label="Gifts" value={m.gifts.toLocaleString("en-US")} sub={`${m.giftsPerCapita.toFixed(1)} per person`} tone="coral" />
         <Stat label="Units given" value={<Units n={m.units} />} sub={`${m.unitsPerCapita.toFixed(1)} per person`} />
         <Stat label="Members who gave" value={`${Math.round(m.giversPercent)}%`} sub={`of ${m.activeMembers} active members`} tone="mint" />
-        <Stat label="Gifts with a value" value={`${Math.round(m.valueTaggedPercent)}%`} sub={m.topValues[0] ? `Top: ${valueName.get(m.topValues[0].valueId) ?? "—"}` : "No values yet"} tone="sunflower" />
+        <Stat label="Gifts with a value" value={`${Math.round(m.valueTaggedPercent)}%`} sub={m.topValues[0] ? `Top: ${valueName.get(m.topValues[0].valueId) ?? "Unnamed value"}` : "No values yet"} tone="sunflower" />
       </div>
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <Card>
@@ -92,7 +92,7 @@ export default async function Insights({ searchParams }: { searchParams: Promise
           ) : (
             <ul className="flex flex-wrap gap-2">
               {isolation.isolated.map((id) => (
-                <li key={id} className="flex items-center gap-2 rounded-full bg-coral-soft py-1 pr-3 pl-1 text-sm font-semibold"><Avatar id={id} label={w.label(id)} size="sm" /> {w.label(id)}</li>
+                <li key={id} className="flex items-center gap-2 rounded-full bg-coral-soft py-1 pr-3 pl-1 text-sm font-semibold"><Avatar id={id} label={w.label(id)} src={w.avatar(id)} size="sm" /> {w.label(id)}</li>
               ))}
             </ul>
           )}

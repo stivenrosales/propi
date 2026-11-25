@@ -29,14 +29,14 @@ export default async function Submissions({ searchParams }: { searchParams: Prom
           {pending.map(({ q, s }) => (
             <Card key={s.id}>
               <div className="flex flex-wrap items-start gap-4">
-                <Avatar id={s.memberId} label={w.label(s.memberId)} />
+                <Avatar id={s.memberId} label={w.label(s.memberId)} src={w.avatar(s.memberId)} />
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-lg font-extrabold">{w.label(s.memberId)} · {q.title}</p>
                   <p className="text-sm text-ink-soft">
                     {s.submittedBy && s.submittedBy !== s.memberId ? `Nominated by ${w.label(s.submittedBy)} · ` : ""}
                     {formatDate(s.submittedAt, w.settings.timezone, true)}
                   </p>
-                  {s.proof ? <p className="mt-2 text-sm break-all"><span className="font-semibold">Proof:</span> {/^https?:\/\//.test(s.proof) ? <a href={s.proof} target="_blank" rel="noreferrer noopener" className="text-coral underline">{s.proof}</a> : s.proof}</p> : null}
+                  {s.proof ? <p className="mt-2 text-sm break-all"><span className="font-semibold">Proof:</span> {/^https?:\/\//.test(s.proof) ? <a href={s.proof} target="_blank" rel="noreferrer noopener" className="text-coral-ink underline">{s.proof}</a> : s.proof}</p> : null}
                   {s.note ? <p className="mt-1 text-sm">{s.note}</p> : null}
                 </div>
                 {q.reward.mode === "fixed" ? <Units n={q.reward.amount} /> : <Badge tone="sunflower">{q.reward.mode.replace("_", " ")}</Badge>}
@@ -54,7 +54,7 @@ export default async function Submissions({ searchParams }: { searchParams: Prom
                   <KeyInput value={formKey()} />
                   <input type="hidden" name="submissionId" value={s.id} />
                   <input type="hidden" name="verdict" value="reject" />
-                  <Button size="sm" tone="danger"><X className="size-4" /> Reject</Button>
+                  <Button size="sm" tone="danger" confirm="Reject? Click again"><X className="size-4" /> Reject</Button>
                 </form>
               </div>
             </Card>

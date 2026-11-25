@@ -12,12 +12,12 @@ const day = (ms: number | null) => (ms === null ? "" : new Date(ms).toISOString(
 
 function QuestForm({ q }: { q?: Quest }) {
   return (
-    <form action={defineQuestAction} className="grid gap-3 sm:grid-cols-2">
+    <form action={defineQuestAction} className="grid gap-3 @lg:grid-cols-2">
       <KeyInput value={formKey()} />
       <input type="hidden" name="questId" value={q?.id ?? ""} />
-      <Field label="Title" className="sm:col-span-2"><Input name="title" defaultValue={q?.title} required /></Field>
-      <Field label="Description" className="sm:col-span-2"><Textarea name="description" defaultValue={q?.description} rows={2} /></Field>
-      <Field label="Image URL" className="sm:col-span-2"><Input name="image" type="url" defaultValue={q?.image ?? ""} /></Field>
+      <Field label="Title" className="@lg:col-span-2"><Input name="title" defaultValue={q?.title} required /></Field>
+      <Field label="Description" className="@lg:col-span-2"><Textarea name="description" defaultValue={q?.description} rows={2} /></Field>
+      <Field label="Image URL" className="@lg:col-span-2"><Input name="image" type="url" defaultValue={q?.image ?? ""} /></Field>
       <Field label="Reward">
         <Select name="rewardMode" defaultValue={q?.reward.mode ?? "fixed"}>
           <option value="fixed">Fixed amount</option>
@@ -38,7 +38,7 @@ function QuestForm({ q }: { q?: Quest }) {
       <Field label="Team cap" hint="Empty for none"><Input name="teamCap" type="number" min={1} defaultValue={q?.teamCap ?? ""} /></Field>
       <Field label="Opens"><Input name="opensAt" type="date" defaultValue={day(q?.opensAt ?? null)} /></Field>
       <Field label="Closes"><Input name="closesAt" type="date" defaultValue={day(q?.closesAt ?? null)} /></Field>
-      <fieldset className="grid gap-2 sm:col-span-2">
+      <fieldset className="grid gap-2 @lg:col-span-2">
         <Checkbox name="proofRequired" label="Proof required" defaultChecked={q?.proofRequired ?? false} />
         <Checkbox name="approvalRequired" label="Approval required" defaultChecked={q?.approvalRequired ?? true} />
         <Checkbox name="timeline" label="Public timeline with comments" defaultChecked={q?.timeline ?? true} />
@@ -56,12 +56,12 @@ export default async function AdminQuests({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Quests" eyebrow="Admin">
-        <a href="/admin/submissions" className="text-sm font-semibold text-coral hover:underline">Review submissions</a>
+        <a href="/admin/submissions" className="text-sm font-semibold text-coral-ink hover:underline">Review submissions</a>
       </PageHeader>
       <Flash ok={sp.ok} error={sp.error} />
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
         <div className="grid content-start gap-4">
-          {quests.length === 0 ? <Empty title="No quests yet" /> : null}
+          {quests.length === 0 ? <Empty title="No quests yet">Quests reward members for a task, like sharing a lesson learned. Create one with the form.</Empty> : null}
           {quests.map((q) => (
             <Card key={q.id}>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -84,7 +84,7 @@ export default async function AdminQuests({ searchParams }: { searchParams: Prom
               </div>
               {q.state === "draft" ? (
                 <details className="mt-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-coral">Edit</summary>
+                  <summary className="cursor-pointer text-sm font-semibold text-coral-ink">Edit</summary>
                   <div className="mt-3"><QuestForm q={q} /></div>
                 </details>
               ) : null}

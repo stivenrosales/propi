@@ -22,7 +22,7 @@ export default async function Adjustments({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Adjustments" eyebrow="Admin">
-        <a href="/admin/audit" className="text-sm font-semibold text-coral hover:underline">See the audit log</a>
+        <a href="/admin/audit" className="text-sm font-semibold text-coral-ink hover:underline">See the audit log</a>
       </PageHeader>
       <Flash ok={sp.ok} error={sp.error} />
       <div className="grid gap-5 lg:grid-cols-2">
@@ -45,7 +45,7 @@ export default async function Adjustments({ searchParams }: { searchParams: Prom
             <Field label="Member"><Select name="memberId" required>{options}</Select></Field>
             <Field label="Amount"><Input name="amount" type="number" min={1} required /></Field>
             <Field label="Reason" hint="Required"><Input name="reason" required /></Field>
-            <Button tone="coral" className="justify-self-start">Deduct</Button>
+            <Button tone="danger" confirm="Deduct? Click again" className="justify-self-start">Deduct</Button>
           </form>
         </Card>
         <Card>
@@ -62,7 +62,7 @@ export default async function Adjustments({ searchParams }: { searchParams: Prom
               </Select>
             </Field>
             <Field label="Reason"><Input name="reason" required /></Field>
-            <Button tone="cream" className="justify-self-start">Reverse gift</Button>
+            <Button tone="danger" confirm="Reverse? Click again" className="justify-self-start">Reverse gift</Button>
           </form>
         </Card>
         <Card className="border-coral">
@@ -72,7 +72,7 @@ export default async function Adjustments({ searchParams }: { searchParams: Prom
             <KeyInput value={formKey()} />
             <Field label="Reason"><Textarea name="reason" required rows={2} /></Field>
             <Field label='Type "RESET" to confirm'><Input name="confirm" required pattern="RESET" autoComplete="off" /></Field>
-            <Button tone="danger" className="justify-self-start">Reset everyone</Button>
+            <Button tone="danger" confirm="Reset everyone? Click again" className="justify-self-start">Reset everyone</Button>
           </form>
         </Card>
       </div>

@@ -3,14 +3,14 @@
 import type { ComponentProps, ReactNode } from "react";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { initials, memberHue } from "@/lib/format";
-
-const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
+import { cx } from "@/lib/cx";
+import { toneClass, type Tone } from "./tones";
 
 export function PageHeader({ title, eyebrow, children }: { title: string; eyebrow?: string; children?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        {eyebrow ? <p className="font-display text-sm font-extrabold tracking-wide text-coral uppercase">{eyebrow}</p> : null}
+        {eyebrow ? <p className="font-display text-sm font-extrabold tracking-wide text-coral-ink uppercase">{eyebrow}</p> : null}
         <h1 className="font-display text-3xl font-black tracking-tight text-ink md:text-4xl">{title}</h1>
       </div>
       {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
@@ -20,7 +20,7 @@ export function PageHeader({ title, eyebrow, children }: { title: string; eyebro
 
 export function Card({ className, children, ...props }: ComponentProps<"section">) {
   return (
-    <section className={cx("min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_1px_0_0_var(--line),0_18px_40px_-28px_rgb(29_26_51/0.35)] md:p-6", className)} {...props}>
+    <section className={cx("@container min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_1px_0_0_var(--line),0_18px_40px_-28px_rgb(29_26_51/0.35)] md:p-6", className)} {...props}>
       {children}
     </section>
   );
@@ -35,28 +35,7 @@ export function CardTitle({ children, action }: { children: ReactNode; action?: 
   );
 }
 
-type Tone = "coral" | "ink" | "cream" | "mint" | "danger";
-const toneClass: Record<Tone, string> = {
-  coral: "bg-coral text-ink",
-  ink: "bg-ink text-cream",
-  cream: "bg-cream text-ink",
-  mint: "bg-mint text-ink",
-  danger: "bg-white text-coral",
-};
-
-export function Button({ tone = "coral", size = "md", className, ...props }: ComponentProps<"button"> & { tone?: Tone; size?: "sm" | "md" }) {
-  return (
-    <button
-      className={cx(
-        "lift inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink font-display font-extrabold tracking-tight shadow-sticker disabled:cursor-not-allowed disabled:opacity-50",
-        size === "sm" ? "min-h-9 px-3.5 text-sm" : "min-h-11 px-5 text-base",
-        toneClass[tone],
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+export { Button } from "./button";
 
 export function LinkButton({ tone = "cream", className, ...props }: ComponentProps<"a"> & { tone?: Tone }) {
   return <a className={cx("lift inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink px-4 font-display text-sm font-extrabold shadow-sticker", toneClass[tone], className)} {...props} />;
@@ -119,7 +98,7 @@ export function Units({ n, className }: { n: number; className?: string }) {
 
 export function Avatar({ id, label, src, size = "md" }: { id: string; label: string; src?: string | null; size?: "sm" | "md" | "lg" }) {
   const dim = size === "sm" ? "size-8 text-xs" : size === "lg" ? "size-16 text-xl" : "size-10 text-sm";
-  if (src) return <img src={src} alt="" className={cx("shrink-0 rounded-full border-2 border-white object-cover shadow", dim)} />;
+  if (src) return <img src={src} alt="" loading="lazy" className={cx("shrink-0 rounded-full border-2 border-white object-cover shadow", dim)} />;
   const hue = memberHue(id);
   return (
     <span aria-hidden="true" className={cx("inline-grid shrink-0 place-items-center rounded-full border-2 border-white font-display font-black text-ink shadow", dim)} style={{ background: hue }}>

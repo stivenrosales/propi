@@ -80,7 +80,7 @@ export default async function Shop({ searchParams }: { searchParams: Promise<Rec
                       ))}
                     </Select>
                   ) : null}
-                  <Button className="flex-1" disabled={soldOut || short} title={short ? "Not enough props yet" : undefined}>
+                  <Button className="flex-1" confirm={`Spend ${r.cost}? Tap again`} disabled={soldOut || short} title={short ? "Not enough props yet" : undefined}>
                     {short ? `Need ${r.cost - balances.redeemable} more` : "Redeem"}
                   </Button>
                 </form>

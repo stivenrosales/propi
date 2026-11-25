@@ -27,10 +27,10 @@ function RuleForm({ r, values }: { r?: AwardRule; values: readonly { id: string;
   const c = r?.criterion;
   const n = c === undefined ? 1 : "n" in c ? c.n : "k" in c ? c.k : "periods" in c ? c.periods : 1;
   return (
-    <form action={defineRuleAction} className="grid gap-3 sm:grid-cols-2">
+    <form action={defineRuleAction} className="grid gap-3 @lg:grid-cols-2">
       <KeyInput value={formKey()} />
       <input type="hidden" name="ruleId" value={r?.id ?? ""} />
-      <Field label="Name" className="sm:col-span-2"><Input name="name" defaultValue={r?.name} required /></Field>
+      <Field label="Name" className="@lg:col-span-2"><Input name="name" defaultValue={r?.name} required /></Field>
       <Field label="Period">
         <Select name="period" defaultValue={r?.period ?? "month"}>
           <option value="week">Week</option>
@@ -51,7 +51,7 @@ function RuleForm({ r, values }: { r?: AwardRule; values: readonly { id: string;
       <Field label="N / K / P"><Input name="n" type="number" min={1} defaultValue={n} /></Field>
       <Field label="Value" hint="For the most-tagged criterion">
         <Select name="valueId" defaultValue={c?.kind === "most_tagged" ? c.valueId : ""}>
-          <option value="">—</option>
+          <option value="">None</option>
           {values.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
         </Select>
       </Field>
@@ -86,7 +86,7 @@ export default async function Rules({ searchParams }: { searchParams: Promise<Re
       <Flash ok={sp.ok} error={sp.error} />
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
         <div className="grid content-start gap-4">
-          {rules.length === 0 ? <Empty title="No award rules yet" /> : null}
+          {rules.length === 0 ? <Empty title="No award rules yet">Rules give props automatically, for example on work anniversaries. Add one with the form.</Empty> : null}
           {rules.map((r) => (
             <Card key={r.id}>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -100,7 +100,7 @@ export default async function Rules({ searchParams }: { searchParams: Promise<Re
                 </div>
               </div>
               <details className="mt-3">
-                <summary className="cursor-pointer text-sm font-semibold text-coral">Edit</summary>
+                <summary className="cursor-pointer text-sm font-semibold text-coral-ink">Edit</summary>
                 <div className="mt-3"><RuleForm r={r} values={values} /></div>
               </details>
             </Card>
