@@ -1,0 +1,55 @@
+# Slack app manifest for Propi. Create the app at https://api.slack.com/apps?new_app=1 → "From a manifest".
+# Socket Mode: no public Slack URL is needed. You then need two tokens:
+#   SLACK_BOT_TOKEN (xoxb-…, OAuth & Permissions → Install to workspace)
+#   SLACK_APP_TOKEN (xapp-…, Basic Information → App-Level Tokens, scope connections:write)
+display_information:
+  name: Propi
+  description: Give props to teammates, redeem them in your team's shop.
+  background_color: "#1d1a33"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: propi
+    always_online: true
+  slash_commands:
+    - command: /propi
+      description: Your props balance, allowance and the shop
+      usage_hint: "[balance | shop | help]"
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:history
+      - channels:read
+      - groups:history
+      - groups:read
+      - chat:write
+      - commands
+      - emoji:read
+      - im:history
+      - im:write
+      - mpim:write
+      - reactions:read
+      - team:read
+      - usergroups:read
+      - users:read
+      - users:read.email
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_home_opened
+      - app_uninstalled
+      - message.channels
+      - message.groups
+      - reaction_added
+      - reaction_removed
+      - member_joined_channel
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
