@@ -28,11 +28,11 @@
 | ID | Specs | Route | Status | Evidence |
 |---|---|---|---|---|
 | T1 | S-ARCH, S-NAME | inline | done | commits c4a1c21, 22cd7ae + vitest fix; typecheck + 1 smoke test green |
-| T2 | S-DOMAIN | delegated (context backstop) | in progress, workflow propi-foundation | spec harness: one test file per spec section, starting RED |
-| T3 | S1–S40, S-MIGRATION | delegated (context backstop) | in progress | core: workspace, giving, allowance, ledger, adjustments |
-| T4 | S-ARCH, S-CONCURRENCY | delegated (parallel with T5, disjoint surfaces) | in progress | db (Prisma) + app use cases + G5 suite |
-| T5 | S101–S105, S76a | delegated (parallel with T4) | in progress | HeyTaco importer + reconciliation |
-| T6 | S41–S100, S106–S108 | delegated (parallel writers, disjoint core folders) | todo | values, shop, collab, rules, quests, stickers, levels, boards, notify, insights, milestones, pairing, api |
+| T2 | S-DOMAIN | delegated (context backstop) | done, commit feat(core) | spec harness: one test file per spec section, starting RED |
+| T3 | S1–S40, S-MIGRATION | delegated (context backstop) | done, commit feat(core); verifier PASS after 1 correction (gift_closed) | core: workspace, giving, allowance, ledger, adjustments |
+| T4 | S-ARCH, S-CONCURRENCY | delegated (parallel with T5, disjoint surfaces) | done, commit feat(db); 216 tests green on Postgres, 3 G5 todos wait for shop; dev pg on :55433 | db (Prisma) + app use cases + G5 suite |
+| T5 | S101–S105, S76a | delegated (parallel with T4) | done, commit feat(import); reconcile ok, 0 diffs, 4726/4726, 203/203, re-import 0 | HeyTaco importer + reconciliation |
+| T6 | S41–S100, S106–S108 | delegated (parallel writers, disjoint core folders) | in progress, workflow propi-modules (run wf_3724dae6-7d8) | values, shop, collab, rules, quests, stickers, levels, boards, notify, insights, milestones, pairing, api |
 | T7 | S9–S29, S48, S106 | inline | todo | Slack adapter (Bolt) + fixtures + manifest |
 | T8 | S-LANDING, S44, S80–S88 | delegated (landing in worktree branch feat/landing, parallel) | landing in progress; brand kit done (commit feat(brand)) | web: landing (Kie refs), admin, shop, dashboards |
 | T9 | S-DEPLOY | inline | todo; target: docker stack /opt/propi + traefik file config, host propi.swnb5v.easypanel.host (wildcard DNS + cert verified), same pattern as /opt/mmtp-cobranzas | Docker image, Easypanel project, migrate, smoke test |
@@ -49,3 +49,4 @@
 - L7 (2026-11-25): T1 done. Launched workflow propi-foundation (run wf_b1ec12e8-31a): foundation writer, then postgres + importer writers in parallel, then an independent verifier with one bounded correction. Delegated because the parent context passed the ~150k backstop. Writers do not commit; the parent commits by unit.
 - L8 (2026-11-25, user, verbatim): "No, ienss uqe hacerlo todo amigo, hasta lo de easypanel, y subir a githubn, hascer su dreadme y todo, por eso te digo que quiero que lo hagas todo, por eos un goal?"
 - L9 (2026-11-25): GitHub repo https://github.com/stivenrosales/propi created public; main and feat/core pushed after a PII scan. Brand: Kie GPT Image 2.6 Flare, logo A (token) chosen and cropped into 3 SVG variants. Deploy route decided: Easypanel API needs panel credentials, so follow the existing /opt/mmtp-cobranzas pattern (swarm stack + traefik file provider) on the Easypanel wildcard domain.
+- L10 (2026-11-25): foundation workflow done. The verifier found a real blocker (an admin reversal was undone by a later edit); it was fixed with gift_closed and rechecked PASS. Parent spot check: typecheck ok, 216 tests on Postgres, reconcile ok. Landing merged (Next.js, standalone). Pushed. Modules workflow launched with 4 writers, an integrator and a verifier.
