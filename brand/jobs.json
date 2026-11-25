@@ -1,0 +1,88 @@
+[
+  {
+    "id": "logo-a-token",
+    "model": "gpt-image-2-6/flare-text-to-image",
+    "input": {
+      "output_format": "svg",
+      "svg": {
+        "model": "gpt-5.6-luna"
+      },
+      "quality": "high",
+      "aspect_ratio": "1:1",
+      "prompt": "A flat vector logo lockup for a software brand. Subject: a round token coin seen straight on, with a bold rounded lowercase letter p on its face and a small four-point sparkle at its upper right edge. To the right of the coin, the wordmark \"propi\" in a chunky rounded geometric sans-serif, all lowercase. Composition: horizontally centered, generous margins. Style: clean flat vector, solid fills, no gradients, no shadows, no outlines on the wordmark. Coin coral #FF5A3C, letter and wordmark deep ink #1D1A33, sparkle sunflower #FFC83D, on a plain cream #FFF6EC background."
+    }
+  },
+  {
+    "id": "logo-b-highfive",
+    "model": "gpt-image-2-6/flare-text-to-image",
+    "input": {
+      "output_format": "svg",
+      "svg": {
+        "model": "gpt-5.6-luna"
+      },
+      "quality": "high",
+      "aspect_ratio": "1:1",
+      "prompt": "A flat vector logo for a team gratitude app. Subject: two simple rounded mitten-like hands meeting in a high five, arranged so their silhouette reads as a capital letter P, with three small confetti dots above. Below it, the wordmark \"propi\" in a heavy rounded sans-serif, lowercase. Composition: centered, symbol above wordmark. Style: minimal, solid fills, no gradients or shadows. Hands coral #FF5A3C, confetti sunflower #FFC83D and mint #2EC4A0, wordmark deep ink #1D1A33, plain cream #FFF6EC background."
+    }
+  },
+  {
+    "id": "logo-c-wordmark",
+    "model": "gpt-image-2-6/flare-text-to-image",
+    "input": {
+      "output_format": "svg",
+      "svg": {
+        "model": "gpt-5.6-luna"
+      },
+      "quality": "high",
+      "aspect_ratio": "3:2",
+      "prompt": "A flat vector wordmark that reads \"propi\" in a heavy rounded geometric sans-serif, all lowercase, tight friendly spacing. The bowl of the letter p contains a small four-point sparkle in coral #FF5A3C, and a tiny sunflower #FFC83D dot sits above the i instead of a normal dot. Letters deep ink #1D1A33 on a plain cream #FFF6EC background. Centered, lots of whitespace, solid fills only, no other text."
+    }
+  },
+  {
+    "id": "icon-d-bubble",
+    "model": "gpt-image-2-6/flare-text-to-image",
+    "input": {
+      "output_format": "svg",
+      "svg": {
+        "model": "gpt-5.6-luna"
+      },
+      "quality": "high",
+      "aspect_ratio": "1:1",
+      "prompt": "A flat vector app icon: a rounded square filled coral #FF5A3C. Inside, a bold cream #FFF6EC lowercase letter p whose round bowl is shaped like a chat speech bubble, with a small mint #2EC4A0 heart inside the bowl. Centered, crisp geometry, solid fills, no gradients, no shadow, no other text, the rounded square stands alone with no backdrop."
+    }
+  },
+  {
+    "id": "hero",
+    "model": "gpt-image-2-6/flare-text-to-image",
+    "input": {
+      "aspect_ratio": "16:9",
+      "resolution": "2K",
+      "quality": "high",
+      "output_format": "png",
+      "prompt": "Hero illustration for a SaaS landing page of a Slack app where teammates thank each other with tokens they later redeem for small rewards. Scene: four diverse coworkers drawn in a playful flat illustration style with chunky rounded shapes and subtle grain texture, tossing glowing coral tokens to each other above floating chat bubbles; on the right a small reward shelf with a coffee cup, a book and a potted plant. Composition: characters on the right two thirds, empty cream space on the left third for a headline. Palette strictly: coral #FF5A3C, deep ink #1D1A33, cream #FFF6EC, sunflower #FFC83D, mint #2EC4A0. No text, no logos, no UI screenshots."
+    }
+  },
+  {
+    "id": "mascot",
+    "model": "gpt-image-2-6/flare-text-to-image",
+    "input": {
+      "aspect_ratio": "3:2",
+      "resolution": "2K",
+      "quality": "high",
+      "output_format": "png",
+      "background": "transparent",
+      "prompt": "Character sheet of a brand mascot: a cute round coin character in coral #FF5A3C with tiny dot eyes, rosy sunflower cheeks and small stubby arms, thick rounded deep ink #1D1A33 outlines. Four poses in a row: waving, thumbs up, holding a small gift box, celebrating with confetti in mint #2EC4A0 and sunflower #FFC83D. Flat vector look, each pose standing alone with no backdrop, no text."
+    }
+  },
+  {
+    "id": "ui-moodboard",
+    "model": "gpt-image-2-6/flare-text-to-image",
+    "input": {
+      "aspect_ratio": "16:9",
+      "resolution": "2K",
+      "quality": "high",
+      "output_format": "png",
+      "prompt": "UI moodboard for a friendly web app dashboard: a leaderboard card with round avatars and coral token counts, a rewards shop grid of rounded cards, a small bar chart, a toast notification, generous 20px rounded corners, soft cream #FFF6EC page, white cards, deep ink #1D1A33 text shown as abstract gray lines (no readable words), accents coral #FF5A3C, sunflower #FFC83D, mint #2EC4A0. Clean modern flat UI, top-down layout, no device mockups."
+    }
+  }
+]

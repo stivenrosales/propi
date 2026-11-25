@@ -1,0 +1,19 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <title>propi logo</title>
+  <desc>Coral token with a deep ink lowercase p and sunflower sparkle, followed by the propi wordmark.</desc>
+  <rect id="background" x="0" y="0" width="1024" height="1024" fill="#FFF6EC" />
+  <g id="lockup">
+    <g id="token">
+      <circle id="coin" cx="252" cy="500" r="126" fill="#FF5A3C" />
+      <path id="coin-p" fill="#1D1A33" d="M183 474c0-25 20-45 45-45h30c42 0 75 28 75 66s-33 66-75 66h-30v23c0 15-10 27-24 27s-24-11-24-27v-110zm45 43h28c18 0 32-10 32-22s-14-22-32-22h-28v44z" />
+      <path id="sparkle" fill="#FFC83D" d="M350 343c4 0 6 3 8 10 7 25 20 35 45 39 8 1 12 4 12 8s-4 7-12 8c-25 4-38 14-45 39-2 7-4 10-8 10s-6-3-8-10c-7-25-20-35-45-39-8-1-12-4-12-8s4-7 12-8c25-4 38-14 45-39 2-7 4-10 8-10z" />
+    </g>
+    <g id="wordmark" fill="#1D1A33">
+      <path id="letter-p-one" fill-rule="evenodd" d="M411 475c0-19 14-31 31-31h31c42 0 70 24 70 58 0 35-28 58-70 58h-17v28c0 17-10 28-23 28s-22-11-22-28V475zm45 45h17c16 0 26-7 26-18s-10-18-26-18h-17v36z" />
+      <path id="letter-r" d="M556 475c0-19 12-31 29-31s29 12 29 31v5c10-24 26-37 47-37 15 0 25 9 25 23s-10 23-24 23c-29 0-48 16-48 45v27c0 18-11 28-29 28s-29-10-29-28V475z" />
+      <path id="letter-o" fill-rule="evenodd" d="M665 501c0-34 29-57 72-57s72 23 72 57-29 57-72 57-72-23-72-57zm45 0c0 12 11 20 27 20s27-8 27-20-11-20-27-20-27 8-27 20z" />
+      <path id="letter-p-two" fill-rule="evenodd" d="M818 475c0-19 14-31 31-31h31c42 0 70 24 70 58 0 35-28 58-70 58h-17v28c0 17-10 28-23 28s-22-11-22-28V475zm45 45h17c16 0 26-7 26-18s-10-18-26-18h-17v36z" />
+      <path id="letter-i" d="M969 408c0-14 11-24 25-24s25 10 25 24-11 24-25 24-25-10-25-24zm2 67c0-19 9-31 23-31s23 12 23 31v79c0 19-9 31-23 31s-23-12-23-31v-79z" />
+    </g>
+  </g>
+</svg>
