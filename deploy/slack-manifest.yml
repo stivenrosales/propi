@@ -17,10 +17,16 @@ features:
   slash_commands:
     - command: /propi
       description: Your props balance, allowance and the shop
-      usage_hint: "[balance | shop | help]"
-      should_escape: false
+      usage_hint: "[balance | shop | sticker | help]"
+      should_escape: true
 oauth_config:
+  redirect_urls:
+    - https://propi.swnb5v.easypanel.host/auth/slack/callback
   scopes:
+    user:
+      - openid
+      - profile
+      - email
     bot:
       - app_mentions:read
       - channels:history
@@ -47,6 +53,7 @@ settings:
       - message.groups
       - reaction_added
       - reaction_removed
+      - tokens_revoked
       - member_joined_channel
   interactivity:
     is_enabled: true

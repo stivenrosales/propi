@@ -17,8 +17,16 @@ TAG="$(git rev-parse --short HEAD)"
 docker build --quiet -f apps/web/Dockerfile \
   --build-arg NEXT_PUBLIC_SITE_URL=https://propi.swnb5v.easypanel.host \
   -t "127.0.0.1:5000/propi-web:$TAG" -t 127.0.0.1:5000/propi-web:latest .
-docker push --quiet "127.0.0.1:5000/propi-web:$TAG" >/dev/null
-docker push --quiet 127.0.0.1:5000/propi-web:latest >/dev/null
+docker build --quiet -f apps/server/Dockerfile \
+  -t "127.0.0.1:5000/propi-server:$TAG" -t 127.0.0.1:5000/propi-server:latest .
+for img in propi-web propi-server; do
+  docker push --quiet "127.0.0.1:5000/$img:$TAG" >/dev/null
+  docker push --quiet "127.0.0.1:5000/$img:latest" >/dev/null
+done
+if [ ! -f "$ROOT/propi.env" ]; then
+  echo "missing $ROOT/propi.env (copy deploy/propi.env.example and fill it in)" >&2
+  exit 1
+fi
 install -m 0644 deploy/traefik-propi.yaml /etc/easypanel/traefik/config/propi.yaml
 PROPI_TAG="$TAG" docker stack deploy --with-registry-auth --detach=false -c deploy/stack.yml propi
 echo "deployed propi@$TAG"

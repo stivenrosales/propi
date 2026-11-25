@@ -2,16 +2,70 @@
 # Traefik routing lives in deploy/traefik-propi.yaml (Easypanel file provider).
 version: "3.8"
 services:
+  # Public web app (Traefik on easypanel). Reads the same env file as the server: DATABASE_URL must
+  # point at postgres:5432 (reachable over the propi network), plus SESSION_SECRET, ENCRYPTION_KEY,
+  # APP_URL=https://propi.swnb5v.easypanel.host and SLACK_CLIENT_ID/SLACK_CLIENT_SECRET for sign-in.
   web:
     image: 127.0.0.1:5000/propi-web:${PROPI_TAG:-latest}
+    env_file: /opt/propi/propi.env
     environment:
       NEXT_PUBLIC_SITE_URL: https://propi.swnb5v.easypanel.host
-    networks: [easypanel]
+    networks: [easypanel, propi]
     deploy:
       replicas: 1
       update_config: { order: start-first }
       restart_policy: { condition: any }
       resources: { limits: { memory: 384M } }
+
+  # Postgres for Propi only. Data lives in the named volume propi-pg.
+  postgres:
+    image: postgres:17
+    env_file: /opt/propi/propi.env
+    volumes:
+      - propi-pg:/var/lib/postgresql/data
+    networks: [propi]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    deploy:
+      replicas: 1
+      restart_policy: { condition: any }
+      resources: { limits: { memory: 512M } }
+
+  # One-shot `prisma migrate deploy`: retries until Postgres answers, then exits 0.
+  migrate:
+    image: 127.0.0.1:5000/propi-server:${PROPI_TAG:-latest}
+    command: ["migrate"]
+    env_file: /opt/propi/propi.env
+    networks: [propi]
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure, delay: 5s, max_attempts: 20 }
+
+  # Slack (Socket Mode) + outbox relay + scheduler; /healthz on PORT for the container healthcheck.
+  # It restarts until migrate has run (a missing table fails the start). Until SLACK_BOT_TOKEN and
+  # SLACK_APP_TOKEN are in propi.env it runs health only (/healthz 200, slack "not_configured");
+  # after adding them, redeploy (or `docker service update --force propi_server`).
+  server:
+    image: 127.0.0.1:5000/propi-server:${PROPI_TAG:-latest}
+    command: ["serve"]
+    env_file: /opt/propi/propi.env
+    environment:
+      RUN_MIGRATIONS: "false"
+    networks: [propi]
+    deploy:
+      replicas: 1
+      update_config: { order: stop-first }
+      restart_policy: { condition: any, delay: 10s }
+      resources: { limits: { memory: 384M } }
+
 networks:
   easypanel:
     external: true
+  propi:
+    driver: overlay
+
+volumes:
+  propi-pg:

@@ -73,7 +73,7 @@ You need Docker and a Slack workspace where you can create apps.
    - the **Bot token** (`xoxb-…`);
    - an **App-level token** with the `connections:write` scope (`xapp-…`);
    - for web sign-in, the **Client ID** and **Client secret**.
-2. **Configure.** Copy `.env.example` to `propi.env` and fill in the values. Every variable is documented in that file.
+2. **Configure.** Copy `deploy/propi.env.example` to `propi.env` and fill in the values. Every variable is documented in that file.
 3. **Run.** Use `docker compose` (or `docker stack deploy -c deploy/stack.yml propi` on Swarm). Migrations run before the server starts.
 4. **Import your history (optional):**
 
