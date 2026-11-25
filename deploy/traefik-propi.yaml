@@ -1,15 +1,42 @@
 http:
   routers:
     http-propi:
-      rule: "Host(`propi.swnb5v.easypanel.host`)"
+      rule: "Host(`propihq.com`) || Host(`www.propihq.com`) || Host(`propi.swnb5v.easypanel.host`)"
       entryPoints: [http]
       middlewares: [redirect-to-https]
       service: propi-web
     https-propi:
-      rule: "Host(`propi.swnb5v.easypanel.host`)"
+      rule: "Host(`propihq.com`)"
       entryPoints: [https]
       service: propi-web
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: propihq.com
+            sans: [www.propihq.com]
+    # www and the old Easypanel host both redirect to the canonical domain.
+    https-propi-www:
+      rule: "Host(`www.propihq.com`)"
+      entryPoints: [https]
+      middlewares: [propi-canonical]
+      service: propi-web
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: propihq.com
+            sans: [www.propihq.com]
+    https-propi-legacy:
+      rule: "Host(`propi.swnb5v.easypanel.host`)"
+      entryPoints: [https]
+      middlewares: [propi-canonical]
+      service: propi-web
       tls: {}
+  middlewares:
+    propi-canonical:
+      redirectRegex:
+        regex: "^https://[^/]+/(.*)"
+        replacement: "https://propihq.com/${1}"
+        permanent: true
   services:
     propi-web:
       loadBalancer:

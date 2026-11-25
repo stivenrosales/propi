@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://propi.swnb5v.easypanel.host">Website</a> ·
+  <a href="https://propihq.com">Website</a> ·
   <a href="docs/spec.md">Spec</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/api.md">API</a> ·
@@ -118,7 +118,7 @@ pnpm --filter @propi/web dev                                    # web app on :30
 ## Status
 
 - **Built and tested.** The domain covers all 109 rules in the spec, Postgres has its concurrency suites, the HeyTaco migration reconciles with 0 diffs, and both the Slack bot and the web app (member area, admin, TV mode, REST API) are done. There are 646 tests, and each phase was checked by an independent verifier.
-- **Running in production** at <https://propi.swnb5v.easypanel.host>. The first team is about 15 people moving from HeyTaco, and the Slack app is being connected.
+- **Running in production** at <https://propihq.com>. The first team is about 15 people moving from HeyTaco, and the Slack app is being connected.
 
 ## License
 

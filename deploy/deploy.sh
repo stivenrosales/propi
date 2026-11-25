@@ -15,7 +15,7 @@ git checkout --quiet "$BRANCH"
 git reset --quiet --hard "origin/$BRANCH"
 TAG="$(git rev-parse --short HEAD)"
 docker build --quiet -f apps/web/Dockerfile \
-  --build-arg NEXT_PUBLIC_SITE_URL=https://propi.swnb5v.easypanel.host \
+  --build-arg NEXT_PUBLIC_SITE_URL=https://propihq.com \
   -t "127.0.0.1:5000/propi-web:$TAG" -t 127.0.0.1:5000/propi-web:latest .
 docker build --quiet -f apps/server/Dockerfile \
   -t "127.0.0.1:5000/propi-server:$TAG" -t 127.0.0.1:5000/propi-server:latest .

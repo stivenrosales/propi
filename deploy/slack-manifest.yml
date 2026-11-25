@@ -21,7 +21,7 @@ features:
       should_escape: true
 oauth_config:
   redirect_urls:
-    - https://propi.swnb5v.easypanel.host/auth/slack/callback
+    - https://propihq.com/auth/slack/callback
   scopes:
     user:
       - openid

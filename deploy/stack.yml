@@ -4,12 +4,12 @@ version: "3.8"
 services:
   # Public web app (Traefik on easypanel). Reads the same env file as the server: DATABASE_URL must
   # point at postgres:5432 (reachable over the propi network), plus SESSION_SECRET, ENCRYPTION_KEY,
-  # APP_URL=https://propi.swnb5v.easypanel.host and SLACK_CLIENT_ID/SLACK_CLIENT_SECRET for sign-in.
+  # APP_URL=https://propihq.com and SLACK_CLIENT_ID/SLACK_CLIENT_SECRET for sign-in.
   web:
     image: 127.0.0.1:5000/propi-web:${PROPI_TAG:-latest}
     env_file: /opt/propi/propi.env
     environment:
-      NEXT_PUBLIC_SITE_URL: https://propi.swnb5v.easypanel.host
+      NEXT_PUBLIC_SITE_URL: https://propihq.com
       # propi.env sets PORT for the server; the web container always listens on 3000.
       PORT: "3000"
     networks: [easypanel, propi]
