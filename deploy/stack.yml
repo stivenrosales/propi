@@ -1,0 +1,17 @@
+# Docker Swarm stack for haiku-vps (deployed with deploy/deploy.sh).
+# Traefik routing lives in deploy/traefik-propi.yaml (Easypanel file provider).
+version: "3.8"
+services:
+  web:
+    image: 127.0.0.1:5000/propi-web:${PROPI_TAG:-latest}
+    environment:
+      NEXT_PUBLIC_SITE_URL: https://propi.swnb5v.easypanel.host
+    networks: [easypanel]
+    deploy:
+      replicas: 1
+      update_config: { order: start-first }
+      restart_policy: { condition: any }
+      resources: { limits: { memory: 384M } }
+networks:
+  easypanel:
+    external: true

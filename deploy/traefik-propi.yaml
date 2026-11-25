@@ -1,0 +1,18 @@
+http:
+  routers:
+    http-propi:
+      rule: "Host(`propi.swnb5v.easypanel.host`)"
+      entryPoints: [http]
+      middlewares: [redirect-to-https]
+      service: propi-web
+    https-propi:
+      rule: "Host(`propi.swnb5v.easypanel.host`)"
+      entryPoints: [https]
+      service: propi-web
+      tls: {}
+  services:
+    propi-web:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://propi_web:3000/"
