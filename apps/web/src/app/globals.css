@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+/* Brand tokens: brand/README.md. Never recolor the token. */
+:root {
+  --coral: #ff5a3c;
+  --ink: #1d1a33;
+  --cream: #fff6ec;
+  --sunflower: #ffc83d;
+  --mint: #2ec4a0;
+
+  /* Derived tints, all mixed from the five brand colors. */
+  --cream-deep: color-mix(in oklch, var(--cream), var(--sunflower) 14%);
+  --coral-soft: color-mix(in oklch, var(--cream), var(--coral) 16%);
+  --sunflower-soft: color-mix(in oklch, var(--cream), var(--sunflower) 30%);
+  --mint-soft: color-mix(in oklch, var(--cream), var(--mint) 20%);
+  --ink-soft: color-mix(in oklch, var(--ink), var(--cream) 30%);
+  --ink-muted: color-mix(in oklch, var(--ink), var(--cream) 18%);
+  --ink-raised: color-mix(in oklch, var(--ink), var(--cream) 8%);
+  --line: color-mix(in oklch, var(--ink), transparent 85%);
+}
+
+@theme inline {
+  --color-coral: var(--coral);
+  --color-ink: var(--ink);
+  --color-cream: var(--cream);
+  --color-sunflower: var(--sunflower);
+  --color-mint: var(--mint);
+  --color-cream-deep: var(--cream-deep);
+  --color-coral-soft: var(--coral-soft);
+  --color-sunflower-soft: var(--sunflower-soft);
+  --color-mint-soft: var(--mint-soft);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-raised: var(--ink-raised);
+  --color-line: var(--line);
+
+  --font-display: var(--font-nunito), ui-rounded, system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  --radius-blob: 2rem;
+  --shadow-sticker: 0 2px 0 0 var(--ink);
+  --shadow-chunky: 0 5px 0 0 var(--ink);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  position: relative;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Light paper grain over everything, like the illustrations. */
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .11 0 0 0 0 .1 0 0 0 0 .2 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--sunflower);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+/* FAQ disclosure marker */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] .faq-plus {
+  transform: rotate(45deg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion. Everything here is opt-in to users who allow it.            */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.9s var(--ease-out-expo) both;
+    animation-delay: calc(var(--i, 0) * 90ms + 80ms);
+  }
+
+  .hero-art {
+    animation: art-in 1.4s var(--ease-out-expo) 0.15s both;
+  }
+
+  .bob {
+    animation: bob 5s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * -1.3s);
+  }
+
+  .twinkle {
+    animation: twinkle 2.6s ease-in-out infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+
+  .faq-plus {
+    transition: transform 0.35s var(--ease-out-expo);
+  }
+
+  .lift {
+    transition:
+      transform 0.3s var(--ease-out-expo),
+      box-shadow 0.3s var(--ease-out-expo);
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 0 var(--ink);
+  }
+  .lift:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 0 var(--ink);
+  }
+
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 28%;
+    }
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes art-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-2deg);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(0.82) rotate(12deg);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
