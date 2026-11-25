@@ -1,10 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE } from "@/server/session";
+import { appUrl } from "../../../server/env.ts";
+import { SESSION_COOKIE } from "../../../server/session.ts";
 
 export const dynamic = "force-dynamic";
 
-export function GET(req: NextRequest) {
-  const res = NextResponse.redirect(new URL("/signin", req.url), 303);
+// Built from APP_URL: behind the proxy req.url carries the bind address (0.0.0.0:3000).
+export function GET(_req: NextRequest) {
+  const res = NextResponse.redirect(`${appUrl()}/signin`, 303);
   res.cookies.delete(SESSION_COOKIE);
   return res;
 }
