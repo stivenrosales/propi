@@ -1,0 +1,22 @@
+<svg viewBox="0 0 1536 1024" xmlns="http://www.w3.org/2000/svg" width="1536" height="1024">
+  <title>propi wordmark</title>
+  <desc>Rounded deep ink lowercase wordmark with a coral sparkle and yellow sunflower dot.</desc>
+  <rect id="background" x="0" y="0" width="1536" height="1024" fill="#FFF6EC" />
+  <g id="wordmark" fill="#1D1A33">
+    <path id="letter-p-one" d="M144 654V451C144 382 198 341 289 341C383 341 447 395 447 475C447 554 384 610 295 610C276 610 259 607 245 602V654C245 687 226 704 195 704C164 704 144 687 144 654Z" />
+    <path id="letter-r" d="M457 399C457 363 498 341 566 341C603 341 628 348 641 364C656 382 656 402 647 417C637 434 620 431 598 429C570 426 551 429 551 459V557C551 589 534 608 504 608C473 608 457 589 457 557V399Z" />
+    <path id="letter-o" fill-rule="evenodd" d="M790 340C878 340 943 395 943 478C943 559 878 615 790 615C702 615 638 559 638 478C638 395 702 340 790 340ZM790 423C756 423 732 446 732 480C732 514 756 537 790 537C824 537 851 514 851 480C851 446 824 423 790 423Z" />
+    <path id="letter-p-two" d="M953 654V451C953 382 1007 341 1098 341C1192 341 1257 395 1257 475C1257 554 1193 610 1104 610C1085 610 1068 607 1050 602V654C1050 687 1031 704 1001 704C970 704 953 687 953 654Z" />
+    <path id="letter-i" d="M1268 430C1268 399 1287 382 1320 382C1353 382 1372 399 1372 430V558C1372 590 1353 608 1320 608C1287 608 1268 590 1268 558V430Z" />
+  </g>
+  <path id="sparkle" fill="#FF5A3C" d="M294 405C302 442 326 466 363 474C326 482 302 506 294 544C286 506 262 482 225 474C262 466 286 442 294 405Z" />
+  <g id="sunflower" fill="#FFC83D">
+    <circle id="petal-top" cx="1320" cy="267" r="19" />
+    <circle id="petal-upper-right" cx="1359" cy="287" r="19" />
+    <circle id="petal-lower-right" cx="1359" cy="330" r="19" />
+    <circle id="petal-bottom" cx="1320" cy="351" r="19" />
+    <circle id="petal-lower-left" cx="1281" cy="330" r="19" />
+    <circle id="petal-upper-left" cx="1281" cy="287" r="19" />
+    <circle id="sunflower-center" cx="1320" cy="309" r="20" />
+  </g>
+</svg>

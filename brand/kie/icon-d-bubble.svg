@@ -1,0 +1,11 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <title>Coral chat heart app icon</title>
+  <desc>A coral rounded square containing a cream lowercase p with a mint heart in its speech-bubble bowl.</desc>
+  <g id="icon">
+    <rect id="background" x="34" y="34" width="956" height="956" rx="180" fill="#FF5A3C" />
+    <g id="letter">
+      <path id="p-shape" fill="#FFF6EC" d="M250 187C234 187 222 199 222 216V818C222 834 234 847 250 847H361C377 847 389 834 389 818V595C438 638 493 662 563 662C705 662 812 564 812 421C812 288 709 181 568 181C498 181 438 204 389 247V216C389 199 377 187 361 187H250ZM568 279C663 279 726 341 726 421C726 506 660 564 568 564C493 564 433 509 433 421C433 340 494 279 568 279Z" />
+      <path id="heart" fill="#2EC4A0" d="M566 547L463 455C423 419 426 368 458 342C489 317 535 326 566 367C597 326 643 317 674 342C706 368 709 419 669 455L566 547Z" />
+    </g>
+  </g>
+</svg>

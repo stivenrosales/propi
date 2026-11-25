@@ -1,0 +1,18 @@
+<svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <title>Propi team gratitude logo</title>
+  <desc>Two coral mitten-like hands meeting in a high five above the lowercase propi wordmark, with three colorful confetti dots.</desc>
+  <rect id="background" x="0" y="0" width="1024" height="1024" fill="#FFF6EC" />
+  <g id="confetti">
+    <circle id="confetti-left" cx="420" cy="145" r="16" fill="#2EC4A0" />
+    <circle id="confetti-center" cx="512" cy="116" r="16" fill="#FFC83D" />
+    <circle id="confetti-right" cx="604" cy="145" r="16" fill="#2EC4A0" />
+  </g>
+  <g id="hands" fill="#FF5A3C">
+    <path id="left-hand" d="M350 610       C347 585 351 548 358 510       L373 438       C358 414 344 387 334 361       L312 311       C304 292 310 274 327 265       C345 256 364 264 373 283       L396 335       L413 238       C417 215 433 200 451 204       C470 208 480 225 476 246       L458 329       L475 333       L497 229       C502 207 519 194 537 200       C555 206 564 223 559 244       L539 347       C548 378 548 413 541 447       C533 483 517 516 499 540       L490 590       C486 613 470 626 446 626       L385 626       C366 626 353 620 350 610 Z" />
+    <path id="right-hand" d="M493 581       C500 559 514 536 526 512       C541 482 548 444 546 408       L548 253       C548 229 563 212 583 211       C603 210 617 225 617 247       L613 320       L629 321       L639 253       C642 231 658 216 677 219       C696 222 706 238 703 260       L694 325       C742 337 775 371 784 416       C801 501 738 570 651 582       C620 586 555 584 493 581 Z" />
+    <path id="hand-separation" d="M545 362 C541 411 531 470 500 522" fill="none" stroke="#FFF6EC" stroke-width="8" stroke-linecap="round" />
+  </g>
+  <g id="wordmark" fill="#1D1A33">
+    <text id="propi" x="512" y="830" text-anchor="middle" font-family="Arial Rounded MT Bold, Nunito, DejaVu Sans, sans-serif" font-size="190" font-weight="800">propi</text>
+  </g>
+</svg>
