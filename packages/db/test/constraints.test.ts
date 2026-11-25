@@ -70,4 +70,19 @@ describe.skipIf(!hasDatabase)("database constraints", () => {
     await expect(sql.$executeRaw`UPDATE command_log SET result = '{"ok":false}'::jsonb WHERE workspace_id = ${WS} AND key = 'k2'`).rejects.toThrow(/append-only/);
     await expect(sql.$executeRaw`DELETE FROM command_log WHERE workspace_id = ${WS} AND key = 'k2'`).rejects.toThrow(/append-only/);
   });
+  test("S46: reward and variant stock can never go below zero", async () => {
+    await sql.$executeRaw`INSERT INTO reward (workspace_id, id, status, stock, data, created_at) VALUES (${WS}, 'rw1', 'active', 0, '{}'::jsonb, now())`;
+    await sql.$executeRaw`INSERT INTO reward_variant (workspace_id, reward_id, id, name, stock, position) VALUES (${WS}, 'rw1', 'v1', 'V', 0, 0)`;
+    await expect(sql.$executeRaw`UPDATE reward SET stock = stock - 1 WHERE workspace_id = ${WS} AND id = 'rw1'`).rejects.toThrow(/reward_stock_check/);
+    await expect(sql.$executeRaw`UPDATE reward_variant SET stock = stock - 1 WHERE workspace_id = ${WS} AND id = 'v1'`).rejects.toThrow(/reward_variant_stock_check/);
+  });
+
+  test("S49 S57: redemption states are the statechart's, and a collab completes into at most one redemption", async () => {
+    const insert = (id: string, state: string, collab: string | null) => sql.$executeRaw`
+      INSERT INTO redemption (workspace_id, id, state, collab_id, gift_card, card_issued, data)
+      VALUES (${WS}, ${id}, ${state}, ${collab}, false, false, '{}'::jsonb)`;
+    await expect(insert("rd1", "shipped", null)).rejects.toThrow(/redemption_state_check/);
+    await expect(insert("rd2", "pending", "c1")).resolves.toBe(1);
+    await expect(insert("rd3", "pending", "c1")).rejects.toThrow(/redemption_one_per_collab/);
+  });
 });

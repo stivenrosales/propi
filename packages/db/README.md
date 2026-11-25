@@ -14,6 +14,14 @@ The Postgres adapter: Prisma schema, hand-written SQL migrations, and the `@prop
 - **Claim first** (G2): `INSERT INTO command_log ... 'running' ON CONFLICT DO NOTHING`. A concurrent
   duplicate waits on the uncommitted row, then replays the stored result.
 - **Nothing derived is stored**: balances and allowance are SQL sums over `ledger_entry`.
+- **Shop writes are compare-and-set** (S46, S49, S51, S57): redemptions and collabs move with
+  `UPDATE ... WHERE state = <from>`, stock with a conditional `stock + delta >= 0`; when a write
+  changes 0 rows the whole unit of work (claim, entries, events) rolls back. `CHECK (stock >= 0)`
+  and a unique index (one redemption per collab) back them up.
+- **Module state** (migration `20261125020000_modules`): shop (`module_config`, `reward`,
+  `reward_variant`, `redemption`, `collab`) and engagement (`award_rule`, `quest*`, `sticker*`,
+  `member_avatar`, `milestone_profile`, `pairing_*`). Engagement stores read through the running
+  unit's transaction while one is active, so a locked unit never needs a second pool connection.
 
 ## Commands
 
@@ -33,11 +41,15 @@ Each db test file creates its own database (`propi_test_<random>`), migrates it 
 ## Usage
 
 ```ts
-import { createApp } from "@propi/app";
-import { createDbPorts, createPrismaClient } from "@propi/db";
+import { createApp, engagementHandlers } from "@propi/app";
+import { createDbEngagementStores, createDbIdentityStore, createDbPorts, createPrismaClient } from "@propi/db";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
-const app = createApp(createDbPorts(prisma));
+const ports = createDbPorts(prisma, { giftCards }); // giftCards: the S108 provider, or omit
+const app = createApp(ports, {
+  handlers: engagementHandlers({ reader: ports.reader, directory: ports.directory, ...createDbEngagementStores(prisma) }),
+});
+const identities = createDbIdentityStore(prisma); // S107
 ```
 
 ## Adding tables

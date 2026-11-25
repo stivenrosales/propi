@@ -10,6 +10,7 @@ export {
   type DbPortsOptions,
   type StoredEvent,
 } from "./ports.ts";
+export { MODULE_APPLIERS, createDbEngagementStores, createDbIdentityStore, shopReader, type DbEngagementStores, type ModuleWrite } from "./modules.ts";
 export { GIVEN_KINDS, RECEIVED_KINDS, REDEEMABLE_KINDS, SQL_LISTS, ledgerCheckConstraints } from "./effects-sql.ts";
 export { settingsFromJson, settingsToJson } from "./settings-json.ts";
 export { systemClock, uuidv7, uuidv7Ids } from "./runtime.ts";

@@ -6,6 +6,8 @@
 //   duplicate blocks on that uncommitted row and then reads the stored result (G2).
 // - Tx.commit completes the claim and writes entries, state and events in the same transaction.
 // - Every balance is a SQL sum over ledger_entry; the kind lists come from core EFFECTS (G1).
+// - Shop reads ride on the Tx and the lock-time reader; module writes (shop CAS, engagement)
+//   apply in the same transaction through MODULE_APPLIERS (modules.ts).
 import {
   orderLocks,
   signedAmount,
@@ -19,6 +21,7 @@ import {
   type Directory,
   type DomainEvent,
   type Gift,
+  type GiftCardProvider,
   type GiftClosure,
   type GiftId,
   type GiftSource,
@@ -43,6 +46,7 @@ import {
 } from "@propi/core";
 import { Prisma, type PrismaClient } from "./client.ts";
 import { SQL_LISTS } from "./effects-sql.ts";
+import { MODULE_APPLIERS, activeUnit, shopReader } from "./modules.ts";
 import { systemClock, uuidv7, uuidv7Ids } from "./runtime.ts";
 import { settingsFromJson, settingsToJson, toJson } from "./settings-json.ts";
 
@@ -62,6 +66,8 @@ export interface DbPortsOptions {
   readonly timeoutMs?: number;
   /** Testing only: false skips the advisory locks, to show the race they prevent is real. */
   readonly advisoryLocks?: boolean;
+  /** S108: the gift-card provider behind ShopReader.prepaidAvailable; null/absent = no provider. */
+  readonly giftCards?: GiftCardProvider | null;
 }
 
 /** Thrown inside the transaction to roll back a claim the handler never committed. */
@@ -305,6 +311,8 @@ const WRITE_APPLIERS: { readonly [K in StateWrite["t"]]: (db: Sql, ws: Workspace
   },
 };
 
+type Applier = (db: Sql, ws: WorkspaceId, w: StateWrite) => Promise<void>;
+
 async function commitDecision<T>(db: Sql, ws: WorkspaceId, c: Commit<T>): Promise<void> {
   const { decision } = c;
   for (const e of decision.entries) {
@@ -317,7 +325,12 @@ async function commitDecision<T>(db: Sql, ws: WorkspaceId, c: Commit<T>): Promis
     WHERE workspace_id = ${ws} AND key = ${c.key} AND status = 'running' AND request_hash = ${c.requestHash}`;
   if (done !== 1) throw new Error(`commit for ${c.key} without a matching claim`);
 
-  for (const w of decision.writes) await (WRITE_APPLIERS[w.t] as (db: Sql, ws: WorkspaceId, w: StateWrite) => Promise<void>)(db, ws, w);
+  for (const w of decision.writes) {
+    // Decisions carry core StateWrites plus module writes (ShopWrite, engagement writes).
+    const apply = (WRITE_APPLIERS as Partial<Record<string, Applier>>)[w.t] ?? (MODULE_APPLIERS as unknown as Partial<Record<string, Applier>>)[w.t];
+    if (apply === undefined) throw new Error(`no Postgres applier for state write ${w.t}`);
+    await apply(db, ws, w);
+  }
 
   if (decision.entries.length > 0) {
     const rows = decision.entries.map(
@@ -344,6 +357,7 @@ async function commitDecision<T>(db: Sql, ws: WorkspaceId, c: Commit<T>): Promis
 export function createDbPorts(prisma: PrismaClient, opts: DbPortsOptions = {}): Ports {
   const clock = opts.clock ?? systemClock;
   const ids = opts.ids ?? uuidv7Ids;
+  const giftCards = opts.giftCards ?? null;
 
   const uow: Ports["uow"] = {
     async run(ws, locks, fn) {
@@ -361,6 +375,7 @@ export function createDbPorts(prisma: PrismaClient, opts: DbPortsOptions = {}): 
             let committed = false;
             const tx: Tx = {
               ...ledgerReader(db, ws),
+              ...shopReader(db, ws, giftCards),
               async claim(key, requestHash): Promise<Claim> {
                 const inserted = await db.$queryRaw<{ key: string }[]>`
                   INSERT INTO command_log (workspace_id, key, request_hash, status) VALUES (${ws}, ${key}, ${requestHash}, 'running')
@@ -381,7 +396,8 @@ export function createDbPorts(prisma: PrismaClient, opts: DbPortsOptions = {}): 
                 committed = true;
               },
             };
-            out = await fn(tx);
+            // Module stores read through this transaction while the unit runs (modules.ts).
+            out = await activeUnit.run({ ws, db }, () => fn(tx));
             if (claimed !== null && !committed) throw new RollbackUncommittedClaim();
           },
           {
@@ -422,7 +438,7 @@ export function createDbPorts(prisma: PrismaClient, opts: DbPortsOptions = {}): 
 
   return {
     uow,
-    reader: { workspace: (ws) => ledgerReader(prisma, ws) },
+    reader: { workspace: (ws) => ({ ...ledgerReader(prisma, ws), ...shopReader(prisma, ws, giftCards) }) },
     directory,
     clock,
     ids,

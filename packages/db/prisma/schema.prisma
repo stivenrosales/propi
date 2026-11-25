@@ -24,6 +24,22 @@ model Workspace {
   gifts       Gift[]
   commandLogs CommandLog[]
 
+  moduleConfigs     ModuleConfig[]
+  rewards           Reward[]
+  redemptions       Redemption[]
+  collabs           Collab[]
+  awardRules        AwardRule[]
+  quests            Quest[]
+  questSubmissions  QuestSubmission[]
+  questComments     QuestComment[]
+  stickers          Sticker[]
+  stickerGrants     StickerGrant[]
+  stickerUses       StickerUse[]
+  memberAvatars     MemberAvatar[]
+  milestoneProfiles MilestoneProfile[]
+  pairingOptIns     PairingOptIn[]
+  pairingRounds     PairingRound[]
+
   @@map("workspace")
 }
 
@@ -193,4 +209,226 @@ model Delivery {
 
   @@unique([eventId, destination], map: "delivery_event_destination_key")
   @@map("delivery")
+}
+
+// ───────────── Module state (migration 20261125020000_modules) ─────────────
+
+/// Per-module configuration: shop, stickers, levels, milestones, pairing.
+model ModuleConfig {
+  workspaceId String @map("workspace_id")
+  module      String
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, module])
+  @@map("module_config")
+}
+
+/// S44-S46. stock NULL = unlimited, never below 0 (CHECK).
+model Reward {
+  workspaceId String   @map("workspace_id")
+  id          String
+  seq         BigInt   @default(autoincrement())
+  status      String
+  stock       Int?
+  data        Json
+  createdAt   DateTime @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  variants  RewardVariant[]
+
+  @@id([workspaceId, id])
+  @@map("reward")
+}
+
+model RewardVariant {
+  workspaceId String @map("workspace_id")
+  rewardId    String @map("reward_id")
+  id          String
+  name        String
+  stock       Int?
+  position    Int
+
+  reward Reward @relation(fields: [workspaceId, rewardId], references: [workspaceId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, rewardId, id])
+  @@map("reward_variant")
+}
+
+/// S49-S55, S108. state is compare-and-set by the adapter.
+model Redemption {
+  workspaceId String  @map("workspace_id")
+  id          String
+  seq         BigInt  @default(autoincrement())
+  state       String
+  memberId    String? @map("member_id")
+  rewardId    String? @map("reward_id")
+  collabId    String? @map("collab_id")
+  budgetMonth String? @map("budget_month")
+  giftCard    Boolean @map("gift_card")
+  cardIssued  Boolean @map("card_issued")
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, id])
+  @@index([workspaceId, budgetMonth], map: "redemption_budget_idx")
+  @@map("redemption")
+}
+
+/// S56-S59. phase is compare-and-set by the adapter.
+model Collab {
+  workspaceId String @map("workspace_id")
+  id          String
+  seq         BigInt @default(autoincrement())
+  phase       String
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, id])
+  @@map("collab")
+}
+
+/// S60-S63.
+model AwardRule {
+  workspaceId String @map("workspace_id")
+  id          String
+  seq         BigInt @default(autoincrement())
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, id])
+  @@map("award_rule")
+}
+
+/// S64-S68.
+model Quest {
+  workspaceId String @map("workspace_id")
+  id          String
+  seq         BigInt @default(autoincrement())
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, id])
+  @@map("quest")
+}
+
+model QuestSubmission {
+  workspaceId String @map("workspace_id")
+  id          String
+  seq         BigInt @default(autoincrement())
+  questId     String @map("quest_id")
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, id])
+  @@index([workspaceId, questId, seq], map: "quest_submission_quest_idx")
+  @@map("quest_submission")
+}
+
+model QuestComment {
+  seq          BigInt @id @default(autoincrement())
+  workspaceId  String @map("workspace_id")
+  submissionId String @map("submission_id")
+  data         Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workspaceId, submissionId, seq], map: "quest_comment_submission_idx")
+  @@map("quest_comment")
+}
+
+/// S73-S76.
+model Sticker {
+  workspaceId String @map("workspace_id")
+  id          String
+  seq         BigInt @default(autoincrement())
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, id])
+  @@map("sticker")
+}
+
+model StickerGrant {
+  seq         BigInt @id @default(autoincrement())
+  workspaceId String @map("workspace_id")
+  memberId    String @map("member_id")
+  stickerId   String @map("sticker_id")
+  month       String
+  uses        Int
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workspaceId, memberId, stickerId, month], map: "sticker_grant_idx")
+  @@map("sticker_grant")
+}
+
+model StickerUse {
+  seq         BigInt @id @default(autoincrement())
+  workspaceId String @map("workspace_id")
+  giftId      String @map("gift_id")
+  stickerId   String @map("sticker_id")
+  giverId     String @map("giver_id")
+  month       String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workspaceId, giverId, stickerId, month], map: "sticker_use_idx")
+  @@map("sticker_use")
+}
+
+/// S78.
+model MemberAvatar {
+  workspaceId String @map("workspace_id")
+  memberId    String @map("member_id")
+  avatarId    String @map("avatar_id")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, memberId])
+  @@map("member_avatar")
+}
+
+/// S92-S94.
+model MilestoneProfile {
+  workspaceId String @map("workspace_id")
+  memberId    String @map("member_id")
+  seq         BigInt @default(autoincrement())
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, memberId])
+  @@map("milestone_profile")
+}
+
+/// S95-S96.
+model PairingOptIn {
+  workspaceId String  @map("workspace_id")
+  memberId    String  @map("member_id")
+  optedIn     Boolean @map("opted_in")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workspaceId, memberId])
+  @@map("pairing_optin")
+}
+
+model PairingRound {
+  seq         BigInt @id @default(autoincrement())
+  workspaceId String @map("workspace_id")
+  round       String
+  data        Json
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workspaceId, seq], map: "pairing_round_idx")
+  @@map("pairing_round")
 }
