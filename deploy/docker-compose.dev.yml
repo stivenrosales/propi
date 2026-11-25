@@ -1,0 +1,14 @@
+# Local Postgres for development and the db test suites.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: propi
+      POSTGRES_PASSWORD: propi
+      POSTGRES_DB: propi
+    ports:
+      - "55432:5432"
+    volumes:
+      - propi-dev-pg:/var/lib/postgresql/data
+volumes:
+  propi-dev-pg:

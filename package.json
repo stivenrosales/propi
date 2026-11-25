@@ -1,0 +1,21 @@
+{
+  "name": "propi",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b",
+    "spec:coverage": "node scripts/spec-coverage.mjs",
+    "replay:heytaco": "node scripts/replay-heytaco.mjs data/heytaco"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.7",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}
