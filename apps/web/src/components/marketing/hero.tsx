@@ -6,18 +6,7 @@ import hero from "../../../public/brand/hero.webp";
 export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="relative isolate overflow-hidden">
-      {/* Illustration: right side on wide screens, below the copy on small ones. */}
-      <div className="hero-art pointer-events-none absolute right-0 bottom-0 -z-10 hidden w-[64%] max-w-[1180px] lg:block">
-        <Image
-          src={hero}
-          alt="Four teammates tossing glowing coral coins to each other between chat bubbles"
-          priority
-          sizes="64vw"
-          className="h-auto w-full [mask-composite:intersect] [mask-image:linear-gradient(to_right,transparent_0%,black_14%),linear-gradient(to_bottom,transparent_0%,black_14%)]"
-        />
-      </div>
-
-      <div className="mx-auto max-w-[1240px] px-4 pt-12 sm:px-6 sm:pt-16 lg:flex lg:min-h-[min(82vh,760px)] lg:items-center lg:px-10 lg:py-20">
+      <div className="mx-auto max-w-[1240px] px-4 pt-12 sm:px-6 sm:pt-16 lg:grid lg:min-h-[min(82vh,760px)] lg:grid-cols-[minmax(0,33rem)_minmax(0,1fr)] lg:items-center lg:gap-10 lg:px-10 lg:py-16 xl:grid-cols-[minmax(0,37rem)_minmax(0,1fr)]">
         <div className="max-w-[34rem] lg:max-w-[33rem] xl:max-w-[37rem]">
           <p className="rise inline-flex items-center gap-2 rounded-full bg-ink px-3.5 py-1.5 text-[0.8rem] font-semibold tracking-wide text-cream" style={{ "--i": 0 } as React.CSSProperties}>
             <Sparkle className="twinkle size-3.5 text-sunflower" />
@@ -93,6 +82,18 @@ export function Hero() {
               Only visible to you: 3 props sent to Lin. You have 2 left today.
             </p>
           </figure>
+        </div>
+
+        {/* Illustration: right column on wide screens, centred on the copy. The source has an empty
+            left third, so it is cropped to the people and its edges fade into the page. */}
+        <div className="hero-art pointer-events-none hidden lg:-mr-10 lg:block xl:-mr-16">
+          <Image
+            src={hero}
+            alt="Four teammates tossing glowing coral coins to each other between chat bubbles"
+            priority
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="aspect-[5/4] w-full object-cover object-right [mask-composite:intersect] [mask-image:linear-gradient(to_right,transparent_0%,black_10%),linear-gradient(to_bottom,black_80%,transparent_100%)]"
+          />
         </div>
       </div>
 
