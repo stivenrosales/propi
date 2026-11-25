@@ -28,5 +28,14 @@ if [ ! -f "$ROOT/propi.env" ]; then
   exit 1
 fi
 install -m 0644 deploy/traefik-propi.yaml /etc/easypanel/traefik/config/propi.yaml
-PROPI_TAG="$TAG" docker stack deploy --with-registry-auth --detach=false -c deploy/stack.yml propi
-echo "deployed propi@$TAG"
+PROPI_TAG="$TAG" docker stack deploy --with-registry-auth --detach=true -c deploy/stack.yml propi
+for i in $(seq 1 60); do
+  web=$(docker service ls --filter name=propi_web --format '{{.Replicas}}')
+  srv=$(docker service ls --filter name=propi_server --format '{{.Replicas}}')
+  img=$(docker service inspect propi_web --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
+  if [ "$web" = "1/1" ] && [ "$srv" = "1/1" ] && [ "${img%%@*}" = "127.0.0.1:5000/propi-web:$TAG" ]; then
+    echo "deployed propi@$TAG (web $web, server $srv)"; exit 0
+  fi
+  sleep 5
+done
+echo "propi@$TAG did not converge in 5 minutes" >&2; exit 1
