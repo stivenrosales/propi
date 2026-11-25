@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@propi/core", "@propi/app", "@propi/db"],
   // node-postgres and the Prisma runtime stay as Node modules on the server.
   serverExternalPackages: ["pg", "@prisma/adapter-pg", "@prisma/client"],
+  // PostHog reverse proxy (see src/components/analytics.tsx).
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      { source: "/ingest/static/:path*", destination: "https://us-assets.i.posthog.com/static/:path*" },
+      { source: "/ingest/array/:path*", destination: "https://us-assets.i.posthog.com/array/:path*" },
+      { source: "/ingest/:path*", destination: "https://us.i.posthog.com/:path*" },
+    ];
+  },
 };
 
 export default nextConfig;

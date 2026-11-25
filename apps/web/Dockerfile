@@ -7,6 +7,8 @@ COPY . .
 RUN pnpm install --frozen-lockfile --filter "@propi/web..."
 ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_POSTHOG_KEY=
+ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
 RUN pnpm --filter @propi/web build
 
 FROM node:24-slim AS runtime

@@ -14,8 +14,11 @@ git fetch --quiet origin
 git checkout --quiet "$BRANCH"
 git reset --quiet --hard "origin/$BRANCH"
 TAG="$(git rev-parse --short HEAD)"
+# Optional analytics key (public client key), read from the server env, never from the repo.
+POSTHOG_KEY="$(grep -s '^POSTHOG_KEY=' "$ROOT/propi.env" | cut -d= -f2- || true)"
 docker build --quiet -f apps/web/Dockerfile \
   --build-arg NEXT_PUBLIC_SITE_URL=https://propihq.com \
+  --build-arg NEXT_PUBLIC_POSTHOG_KEY="$POSTHOG_KEY" \
   -t "127.0.0.1:5000/propi-web:$TAG" -t 127.0.0.1:5000/propi-web:latest .
 docker build --quiet -f apps/server/Dockerfile \
   -t "127.0.0.1:5000/propi-server:$TAG" -t 127.0.0.1:5000/propi-server:latest .
