@@ -1,0 +1,135 @@
+// SlackLookup over the Web API, the identity store and the Directory. Resolves Slack users into
+// members (S107) and provisions a member the first time a human Slack user appears, so every person
+// in the workspace can give and receive. Bots are never members (S8). Rules stay in core.
+import { createHash } from "node:crypto";
+import type { Actor, ChannelKind, IdentityRef, MemberId, Mention, WorkspaceId } from "@propi/app";
+import type { SlackLookup } from "@propi/slack";
+import type { Runtime } from "./runtime.ts";
+import type { SlackApi } from "./slack-api.ts";
+
+const TTL_MS = 60_000;
+
+/** A tiny TTL cache; Slack lookups repeat for every message in a burst. */
+export function ttlCache<V>(ttlMs = TTL_MS, now: () => number = Date.now) {
+  const m = new Map<string, { at: number; v: V }>();
+  return {
+    async get(key: string, load: () => Promise<V>): Promise<V> {
+      const hit = m.get(key);
+      if (hit !== undefined && now() - hit.at < ttlMs) return hit.v;
+      const v = await load();
+      m.set(key, { at: now(), v });
+      return v;
+    },
+    delete: (key: string) => void m.delete(key),
+    clear: () => m.clear(),
+  };
+}
+
+/** A stable member id per Slack identity, so two concurrent first sightings create one member. */
+export function provisionedMemberId(ws: WorkspaceId, team: string, user: string): MemberId {
+  const h = createHash("sha256").update(`${ws}\nslack\n${team}\n${user}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}` as MemberId;
+}
+
+export interface ServerLookup extends SlackLookup {
+  /** The Slack user linked to a member, for DMs and `<@U…>` mentions. */
+  slackUserOf(ws: WorkspaceId, member: MemberId): Promise<string | null>;
+  /** Drops cached workspace and identity data (after install/uninstall). */
+  invalidate(): void;
+}
+
+export function createSlackLookup(rt: Runtime, slack: SlackApi, log: (msg: string, data?: unknown) => void = () => undefined): ServerLookup {
+  const workspaces = ttlCache<WorkspaceId | null>();
+  const users = ttlCache<{ isBot: boolean; deleted: boolean } | null>(10 * TTL_MS);
+  const channels = ttlCache<ChannelKind>(10 * TTL_MS);
+  const groups = ttlCache<readonly string[]>(5 * TTL_MS);
+  const reverse = ttlCache<ReadonlyMap<MemberId, string>>();
+  const ref = (team: string, user: string): IdentityRef => ({ platform: "slack", tenantId: team, userId: user });
+
+  async function provision(ws: WorkspaceId, team: string, user: string): Promise<MemberId | null> {
+    const memberId = provisionedMemberId(ws, team, user);
+    if ((await rt.ports.directory.member(ws, memberId)) === null) {
+      await rt.admin.addMember(ws, { id: memberId, role: "member", active: true, dailyLimitOverride: null });
+    }
+    try {
+      const linked = await rt.identities.link({ actor: { kind: "system", job: "slack-provision" }, workspaceId: ws, identity: ref(team, user), memberId });
+      if (linked.ok) {
+        reverse.delete(ws);
+        log("member provisioned", { workspaceId: ws });
+        return memberId;
+      }
+      if (linked.error.code === "identity_taken") return linked.error.memberId;
+      return null;
+    } catch (err) {
+      // A concurrent first sighting linked it first (unique identity): use theirs.
+      const again = await rt.identities.resolve(ws, ref(team, user));
+      if (again !== null) return again;
+      throw err;
+    }
+  }
+
+  async function human(ws: WorkspaceId, team: string, user: string): Promise<{ kind: "member"; id: MemberId } | { kind: "bot" } | null> {
+    const linked = await rt.identities.resolve(ws, ref(team, user));
+    if (linked !== null) return { kind: "member", id: linked };
+    const info = await users.get(user, () => slack.userInfo(user));
+    if (info === null) return null;
+    if (info.isBot) return { kind: "bot" };
+    if (info.deleted) return null;
+    const id = await provision(ws, team, user);
+    return id === null ? null : { kind: "member", id };
+  }
+
+  return {
+    workspace: (team) =>
+      workspaces.get(team, async () => {
+        const inst = await rt.installations.find("slack", team);
+        return inst === null || inst.uninstalledAt !== null ? null : inst.workspaceId;
+      }),
+    settings: (ws) => rt.ports.directory.settings(ws),
+    values: (ws) => rt.ports.directory.values(ws),
+    async actor(ws, team, user): Promise<Actor | null> {
+      const who = await human(ws, team, user);
+      if (who === null) return null;
+      if (who.kind === "bot") return { kind: "bot", platformUserId: user };
+      const record = await rt.ports.directory.member(ws, who.id);
+      return record === null ? null : { kind: "member", memberId: record.id, role: record.role };
+    },
+    async mention(ws, team, user): Promise<Mention | null> {
+      const who = await human(ws, team, user);
+      if (who === null) return null;
+      return who.kind === "bot" ? { kind: "bot" } : { kind: "member", memberId: who.id };
+    },
+    async groupMembers(ws, team, group) {
+      const ids = await groups.get(`${team}:${group}`, () => slack.usergroupUsers(group));
+      const out: MemberId[] = [];
+      for (const user of ids) {
+        const who = await human(ws, team, user);
+        if (who?.kind === "member") out.push(who.id);
+      }
+      return out;
+    },
+    message: (_team, channel, ts) => slack.message(channel, ts),
+    channelKind: (_team, channel) =>
+      channels.get(channel, async () => {
+        const c = await slack.channelInfo(channel);
+        // Unknown channels count as private, the stricter reading of S16.
+        if (c === null) return "private";
+        return c.isIm || c.isMpim ? "dm" : c.isPrivate ? "private" : "public";
+      }),
+    async channelMembers(ws, team, channel) {
+      const linked = new Map((await rt.identityStore.list(ws)).filter((i) => i.platform === "slack" && i.tenantId === team).map((i) => [i.userId, i.memberId]));
+      return (await slack.channelMembers(channel)).flatMap((u) => {
+        const id = linked.get(u);
+        return id === undefined ? [] : [id];
+      });
+    },
+    async slackUserOf(ws, member) {
+      const map = await reverse.get(ws, async () => new Map((await rt.identityStore.list(ws)).filter((i) => i.platform === "slack").map((i) => [i.memberId, i.userId])));
+      return map.get(member) ?? null;
+    },
+    invalidate() {
+      workspaces.clear();
+      reverse.clear();
+    },
+  };
+}

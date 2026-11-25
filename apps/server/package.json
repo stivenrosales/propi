@@ -1,0 +1,24 @@
+{
+  "name": "@propi/server",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "propi-server": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "3.1.0",
+    "@propi/app": "workspace:*",
+    "@propi/cli": "workspace:*",
+    "@propi/core": "workspace:*",
+    "@propi/db": "workspace:*",
+    "@propi/heytaco": "workspace:*",
+    "@propi/slack": "workspace:*",
+    "@slack/bolt": "5.1.0",
+    "ai": "7.0.181"
+  }
+}

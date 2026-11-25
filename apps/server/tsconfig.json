@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "types": ["node"], "rewriteRelativeImportExtensions": false, "emitDeclarationOnly": true },
+  "include": ["src", "test"],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/app" },
+    { "path": "../../packages/db" },
+    { "path": "../../packages/heytaco" },
+    { "path": "../../packages/slack" },
+    { "path": "../cli" }
+  ]
+}
