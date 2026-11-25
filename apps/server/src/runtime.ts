@@ -16,6 +16,7 @@ import {
   type InsightsQueries,
   type NotifyQueries,
   type Ports,
+  type BillingStore,
 } from "@propi/app";
 import type { IdentityStore } from "@propi/core";
 import type { Summarizer } from "@propi/core/insights";
@@ -34,6 +35,7 @@ import {
   type DbInstallations,
   type PrismaClient,
   type SecretCipher,
+  createDbBilling,
 } from "@propi/db";
 import { jobHandlers } from "./jobs.ts";
 
@@ -43,6 +45,8 @@ export interface RuntimeOptions {
   readonly ids?: Ids;
   /** S91: only when OPENROUTER_API_KEY is set. */
   readonly summarizer?: Summarizer | null;
+  /** S7: true when POLAR_* billing env is set; enables the Free plan limit and the App Home prompt. */
+  readonly billing?: boolean;
 }
 
 export interface Runtime {
@@ -61,12 +65,17 @@ export interface Runtime {
   readonly notify: NotifyQueries;
   readonly insightsQueries: InsightsQueries;
   readonly summarizer: Summarizer | null;
+  readonly billing: BillingStore | null;
 }
 
 export function createRuntime(prisma: PrismaClient, opts: RuntimeOptions): Runtime {
   const ports = createDbPorts(prisma, { ...(opts.clock === undefined ? {} : { clock: opts.clock }), ...(opts.ids === undefined ? {} : { ids: opts.ids }) });
   const engagement = createDbEngagementStores(prisma);
-  const app = createApp(ports, { handlers: [...engagementHandlers({ reader: ports.reader, directory: ports.directory, ...engagement }), ...jobHandlers] });
+  const billing = opts.billing === true ? createDbBilling(prisma) : null;
+  const app = createApp(ports, {
+    handlers: [...engagementHandlers({ reader: ports.reader, directory: ports.directory, ...engagement }), ...jobHandlers],
+    ...(billing === null ? {} : { billing }),
+  });
   const identityStore = createDbIdentityStore(prisma);
   const insights = createDbInsights(prisma);
   const summarizer = opts.summarizer ?? null;
@@ -87,5 +96,6 @@ export function createRuntime(prisma: PrismaClient, opts: RuntimeOptions): Runti
     notify: notifyQueries(insightsDeps),
     insightsQueries: insightsQueries(insightsDeps),
     summarizer,
+    billing,
   };
 }

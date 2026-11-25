@@ -8,8 +8,10 @@ import type {
   Ids,
   Instant,
   LockKey,
+  PlanState,
   Tx,
   WorkspaceReader,
+  WorkspaceId,
   WorkspaceSettings,
 } from "@propi/core";
 
@@ -26,6 +28,8 @@ export interface LoadContext {
   readonly ids: Ids;
   readonly settings: WorkspaceSettings;
   readonly now: Instant;
+  /** S7: the workspace plan; absent when billing is not configured (createApp without `billing`). */
+  readonly plan?: (ws: WorkspaceId) => Promise<PlanState>;
 }
 
 /**

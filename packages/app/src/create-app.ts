@@ -9,6 +9,7 @@ import {
   replay,
   type AuditRecord,
   type Balances,
+  type BillingStore,
   type CommandBase,
   type LocalDate,
   type MemberId,
@@ -18,6 +19,7 @@ import {
 } from "@propi/core";
 import type { LoadContext, RegisteredHandler } from "./handler.ts";
 import { requestHash } from "./hash.ts";
+import { workspacePlan } from "./billing/index.ts";
 import { HANDLERS, type AppCommand, type AppResults } from "./registry.ts";
 
 export interface AllowanceView {
@@ -36,6 +38,8 @@ export interface LedgerCheck {
 export interface CreateAppOptions {
   /** Extra handlers (e.g. from a plugin module); they may not reuse a registered command type. */
   readonly handlers?: readonly RegisteredHandler[];
+  /** S7: when set, the plan limit applies (Free over its member limit takes no new redemptions). */
+  readonly billing?: BillingStore;
 }
 
 export type ResultOf<C extends { readonly type: string }> = Result<C["type"] extends keyof AppResults ? AppResults[C["type"]] : unknown>;
@@ -60,6 +64,8 @@ export function createApp(ports: Ports, options: CreateAppOptions = {}): App {
     if (registry.has(h.type)) throw new Error(`duplicate handler for command type ${h.type}`);
     registry.set(h.type, h);
   }
+  const billing = options.billing;
+  const plan = billing === undefined ? undefined : (ws: WorkspaceId) => workspacePlan({ billing, directory: ports.directory, clock: ports.clock }, ws);
 
   async function run(cmd: CommandBase & { readonly type: string }): Promise<Result<unknown>> {
     const handler = registry.get(cmd.type);
@@ -75,7 +81,7 @@ export function createApp(ports: Ports, options: CreateAppOptions = {}): App {
     return ports.uow.run(ws, locks, async (tx) => {
       // Live commands run at the server clock; history imports keep the source timestamp (HandlerClock).
       const now = handler.clock === "command" ? cmd.at : ports.clock.now();
-      const ctx: LoadContext = { directory: ports.directory, ids: ports.ids, settings, now };
+      const ctx: LoadContext = { directory: ports.directory, ids: ports.ids, settings, now, ...(plan === undefined ? {} : { plan }) };
       const key = handler.resolveKey ? await handler.resolveKey(c, tx, ctx) : cmd.key;
 
       // 2. Claim the command key first (G2): a stored result is replayed, never recomputed.

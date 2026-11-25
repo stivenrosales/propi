@@ -5,3 +5,4 @@ export { createEngagementMemory, engagementHandlers, type EngagementDeps, type E
 export { createMemoryInsights, type MemoryInsights } from "./insights.ts";
 export { createMemoryApiStores, type MemoryApiStores } from "./api.ts";
 export { createMemoryIdentityStore } from "./identity.ts";
+export { createMemoryBillingStore } from "./billing.ts";

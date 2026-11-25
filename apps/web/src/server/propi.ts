@@ -40,9 +40,10 @@ import {
   type DbInsights,
   type DbInstallations,
   type PrismaClient,
+  createDbBilling,
 } from "@propi/db";
 import { apiReaders } from "./api-readers";
-import { databaseUrl } from "./env";
+import { databaseUrl, polarConfig } from "./env";
 
 export interface Propi {
   readonly prisma: PrismaClient;
@@ -70,7 +71,11 @@ function build(): Propi {
   const prisma = createPrismaClient(databaseUrl(), { maxConnections: 10 });
   const ports = createDbPorts(prisma, { clock: systemClock, ids: uuidv7Ids });
   const engagement = createDbEngagementStores(prisma);
-  const app = createApp(ports, { handlers: engagementHandlers({ reader: ports.reader, directory: ports.directory, ...engagement }) });
+  // S7: the Free plan limit applies only when Polar billing is configured.
+  const app = createApp(ports, {
+    handlers: engagementHandlers({ reader: ports.reader, directory: ports.directory, ...engagement }),
+    ...(polarConfig() === null ? {} : { billing: createDbBilling(prisma) }),
+  });
   const insights = createDbInsights(prisma);
   const deps = { ports, source: insights.source };
   const identities = createIdentities({ store: createDbIdentityStore(prisma), directory: ports.directory });

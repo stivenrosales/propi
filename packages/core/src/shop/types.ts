@@ -274,7 +274,8 @@ export type ShopError =
   | { readonly code: "illegal_transition"; readonly from: RedemptionState; readonly transition: RedemptionTransition } // S49
   | { readonly code: "collab_not_found" }
   | { readonly code: "collab_closed" } // S58
-  | { readonly code: "deadline_not_reached" }; // S58
+  | { readonly code: "deadline_not_reached" } // S58
+  | { readonly code: "plan_limit"; readonly limit: number; readonly activeMembers: number }; // S7: Free plan over its member limit
 
 export type RedemptionEventType = `redemption.${"created" | "approved" | "rejected" | "cancelled" | "fulfilled"}`;
 

@@ -33,3 +33,4 @@ export { createDbInsights, exportRedemptionRow, type DbInsights } from "./insigh
 export { createDbInstallations, installationContext, slackBotCredentials, type BootstrapResult, type DbInstallations, type InstallInput, type SlackInstallationData, type StoredInstallation } from "./install.ts";
 export { readGifts } from "./ports.ts";
 export { safeNumber } from "./numbers.ts";
+export { createDbBilling } from "./billing.ts";

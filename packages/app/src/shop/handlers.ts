@@ -134,6 +134,7 @@ export const shopHandlers: readonly RegisteredHandler[] = [
         budgetSpent: await tx.budgetSpent(month),
         prepaidAvailable: await tx.prepaidAvailable(),
         redemptionId: ctx.ids.next("redemption"),
+        plan: ctx.plan === undefined ? null : await ctx.plan(cmd.workspaceId),
       };
     },
     decide: decideRedeem,

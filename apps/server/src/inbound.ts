@@ -2,7 +2,7 @@
 // Bolt, tests call them with recorded payloads. Per G7 the event handler finishes execute() before
 // the event is acknowledged; a thrown error leaves it unacknowledged so Slack retries and
 // command_log replays (S17).
-import { asShop, memberLevel, rewardCatalog, type Actor, type AppCommand, type DomainError, type Instant, type MemberId, type Result, type WorkspaceId } from "@propi/app";
+import { asShop, memberLevel, rewardCatalog, workspacePlan, type Actor, type AppCommand, type DomainError, type Instant, type MemberId, type Result, type WorkspaceId } from "@propi/app";
 import {
   actionCommand,
   actionResultText,
@@ -114,7 +114,10 @@ export async function homeFor(d: InboundDeps, ws: WorkspaceId, actor: Extract<Ac
     memberLevel({ reader: d.rt.ports.reader, levels: d.rt.engagement.levels }, ws, actor.memberId),
   ]);
   const leaderboard = month.ok && allTime.ok ? { month: month.value, allTime: allTime.value } : null;
-  return homeView({ balances, allowance, leaderboard, rewards, level }, ctx);
+  // S7: admins of a Free workspace over its member limit see the upgrade prompt.
+  const plan = d.rt.billing !== null && actor.role === "admin" ? await workspacePlan({ billing: d.rt.billing, directory: d.rt.ports.directory, clock: d.rt.ports.clock }, ws) : null;
+  const upgradePrompt = plan !== null && plan.overLimit && plan.limit !== null ? { activeMembers: plan.activeMembers, limit: plan.limit } : null;
+  return homeView({ balances, allowance, leaderboard, rewards, level, upgradePrompt }, ctx);
 }
 
 export async function publishHome(d: InboundDeps, team: string, user: string): Promise<void> {

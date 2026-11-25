@@ -64,6 +64,8 @@ export function errorText(error: DomainError, ctx: RenderContext): string {
       return "That reward is out of stock.";
     case "budget_exceeded":
       return "The shop's monthly budget is used up. Try again next month.";
+    case "plan_limit":
+      return "Your workspace is over the Free plan limit. Ask an admin to upgrade to Pro.";
     case "reward_not_active":
     case "reward_not_found":
       return "That reward is no longer available.";
@@ -266,6 +268,8 @@ export interface HomeData {
   readonly leaderboard: { readonly month: readonly LeaderboardRow[]; readonly allTime: readonly LeaderboardRow[] } | null;
   readonly rewards: readonly Reward[];
   readonly level: { readonly level: number; readonly title: string } | null;
+  /** S7: set for admins of a Free workspace over its member limit; absent or null shows nothing. */
+  readonly upgradePrompt?: { readonly activeMembers: number; readonly limit: number } | null;
 }
 
 const MEDALS = [":first_place_medal:", ":second_place_medal:", ":third_place_medal:"];
@@ -292,6 +296,11 @@ export function homeView(d: HomeData, ctx: RenderContext): HomeView {
     },
   ];
   if (d.level !== null) blocks.push(context(`:star: Level ${d.level.level} · ${escapeText(d.level.title)}`));
+  if (d.upgradePrompt != null) {
+    const p = d.upgradePrompt;
+    const link = ctx.appUrl === null ? "Upgrade to Pro in the web admin" : `<${ctx.appUrl}/admin/billing|Upgrade to Pro>`;
+    blocks.push(md(`:warning: *Your workspace is over the Free plan limit (${p.activeMembers} of ${p.limit} active members).* Recognition keeps working, but the shop takes no new redemptions. ${link}`));
+  }
   if (ctx.appUrl !== null) blocks.push(context(`<${ctx.appUrl}/app|Open your dashboard> · <${ctx.appUrl}/app/shop|${plural} shop>`));
   blocks.push(divider);
   if (d.leaderboard !== null) {

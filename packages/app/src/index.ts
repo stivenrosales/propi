@@ -5,6 +5,8 @@ export { defineHandler, type CommandHandler, type HandlerClock, type LoadContext
 export { HANDLERS, type AppCommand, type AppResults } from "./registry.ts";
 export { requestHash } from "./hash.ts";
 
+// Billing and plans (S6, S7).
+export { workspacePlan, type PlanDeps } from "./billing/index.ts";
 // Shop (S44-S59, S108).
 export * from "./shop/index.ts";
 // Engagement (S60-S68, S73-S79, S92-S96).

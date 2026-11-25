@@ -105,3 +105,22 @@ describe("shop and App Home", () => {
     expect(msg.blocks[1]).toMatchObject({ type: "actions", elements: [{ action_id: "propi_redemption_approve", value: "r-1" }, { action_id: "propi_redemption_reject", value: "r-1" }] });
   });
 });
+
+describe("S7 plan limit in Slack", () => {
+  const home = { balances: { received: 4, given: 1, redeemable: 3 }, allowance: { day: "2026-11-25" as never, limit: 5, used: 1, remaining: 4 }, leaderboard: null, rewards: [], level: null };
+
+  test("an admin of a Free workspace over its limit sees the upgrade prompt in App Home", () => {
+    const json = JSON.stringify(homeView({ ...home, upgradePrompt: { activeMembers: 12, limit: 10 } }, ctx).blocks);
+    expect(json).toContain("Your workspace is over the Free plan limit (12 of 10 active members)");
+    expect(json).toContain("<https://propi.example/admin/billing|Upgrade to Pro>");
+  });
+
+  test("without the prompt field (or null) the App Home is unchanged", () => {
+    expect(homeView({ ...home, upgradePrompt: null }, ctx)).toEqual(homeView(home, ctx));
+    expect(JSON.stringify(homeView(home, ctx).blocks)).not.toContain("Free plan");
+  });
+
+  test("a refused redemption explains the plan limit", () => {
+    expect(errorText({ code: "plan_limit", limit: 10, activeMembers: 12 } as never, ctx)).toBe("Your workspace is over the Free plan limit. Ask an admin to upgrade to Pro.");
+  });
+});

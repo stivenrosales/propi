@@ -1,6 +1,6 @@
 import { DEFAULT_MILESTONES } from "@propi/core/milestones";
 import { DEFAULT_PAIRING } from "@propi/core/pairing";
-import { Button, Card, CardTitle, Checkbox, Field, Flash, Input, KeyInput, PageHeader, Select, Textarea } from "@/components/app/ui";
+import { Button, Card, CardTitle, Checkbox, Field, Flash, Input, KeyInput, LinkButton, PageHeader, Select, Textarea } from "@/components/app/ui";
 import { saveBoardSettingsAction, saveModulesAction, saveShopSettingsAction, saveWorkspaceSettingsAction } from "@/server/actions/admin";
 import { requireViewer } from "@/server/auth";
 import { formKey } from "@/server/command";
@@ -33,7 +33,9 @@ export default async function Settings({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageHeader title="Settings" eyebrow="Admin" />
+      <PageHeader title="Settings" eyebrow="Admin">
+        <LinkButton href="/admin/billing">Plan and billing</LinkButton>
+      </PageHeader>
       <Flash ok={sp.ok} error={sp.error} />
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>

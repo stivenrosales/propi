@@ -1,6 +1,7 @@
 // S35, S46-S55, S108: redemptions as pure deciders. Docs: docs/statecharts/redemption.
 import { isPosInt, type Instant, type MemberId } from "../shared/types.ts";
 import type { MemberRecord } from "../members/members.ts";
+import type { PlanState } from "../billing/index.ts";
 import type { NewEntry } from "../ledger/entries.ts";
 import { stockOf } from "./catalog.ts";
 import { canManageShop, canTransition, nextState, shopAccept, shopEntry, shopReject, sortedIds } from "./rules.ts";
@@ -34,6 +35,8 @@ export interface RedeemSnapshot {
   /** S108: provider balance minus reservations; null without a provider. */
   readonly prepaidAvailable: Money | null;
   readonly redemptionId: RedemptionId;
+  /** S7: the workspace plan; absent or null when billing is not configured (no limit). */
+  readonly plan?: PlanState | null;
 }
 
 export function redemptionEvent(type: RedemptionEventType, r: Redemption, notify: readonly MemberId[]): ShopEvent {
@@ -67,6 +70,8 @@ export function decideRedeem(s: RedeemSnapshot, cmd: Redeem, now: Instant): Shop
   if (behalf === null) return shopReject({ code: "forbidden", need: "admin" });
   if (s.member === null) return shopReject({ code: "unknown_member", memberId: cmd.memberId });
   if (!s.member.active) return shopReject({ code: "inactive_member" });
+  // S7: a Free workspace over its member limit takes no new redemptions; recognition is unaffected.
+  if (s.plan?.overLimit === true) return shopReject({ code: "plan_limit", limit: s.plan.limit ?? 0, activeMembers: s.plan.activeMembers });
   const reward = s.reward;
   if (reward === null) return shopReject({ code: "reward_not_found" });
   if (reward.status !== "active") return shopReject({ code: "reward_not_active" });

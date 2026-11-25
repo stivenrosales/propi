@@ -45,6 +45,11 @@ model Workspace {
   deliveries       Delivery[]
   installations    Installation[]
 
+  /// S7: treated as Pro, never billed.
+  comped        Boolean        @default(false)
+  subscription  Subscription?
+  billingEvents BillingEvent[]
+
   @@map("workspace")
 }
 
@@ -524,4 +529,37 @@ model Installation {
   @@id([platform, tenantId])
   @@index([workspaceId], map: "installation_workspace_idx")
   @@map("installation")
+}
+
+/// S6: one paid subscription per workspace, as last reported by the billing provider.
+model Subscription {
+  workspaceId       String    @id @map("workspace_id")
+  provider          String
+  subscriptionId    String    @map("subscription_id")
+  customerId        String?   @map("customer_id")
+  status            String
+  currentPeriodEnd  DateTime? @map("current_period_end") @db.Timestamptz(3)
+  cancelAtPeriodEnd Boolean   @default(false) @map("cancel_at_period_end")
+  seats             Int?
+  sourceUpdatedAt   DateTime  @map("source_updated_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([provider, subscriptionId], map: "subscription_provider_idx")
+  @@map("subscription")
+}
+
+/// S6: webhook idempotency; each provider event is processed once.
+model BillingEvent {
+  provider    String
+  eventId     String   @map("event_id")
+  type        String
+  workspaceId String?  @map("workspace_id")
+  receivedAt  DateTime @map("received_at") @db.Timestamptz(3)
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([provider, eventId])
+  @@map("billing_event")
 }

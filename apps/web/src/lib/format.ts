@@ -72,6 +72,12 @@ export function errorMessage(error: { readonly code: string; readonly [k: string
       return `Not enough redeemable balance: it costs ${String(e.cost)}, you have ${String(e.redeemable)}.`;
     case "out_of_stock":
       return "That reward is out of stock right now.";
+    case "plan_limit":
+      return "Your workspace is over the Free plan limit. Ask an admin to upgrade to Pro.";
+    case "billing_not_configured":
+      return "Billing is not configured on this Propi server.";
+    case "billing_unavailable":
+      return "Billing is unavailable right now. Try again in a minute.";
     case "budget_exceeded":
       return "This month's redemption budget would be exceeded.";
     case "reason_required":

@@ -134,7 +134,8 @@ async function serve(): Promise<number> {
     return 0;
   }
   const summarizer = config.openRouter === null ? null : openRouterSummarizer(config.openRouter);
-  const rt = createRuntime(prisma, { cipher: secretCipherFromEnv(), summarizer });
+  const billing = ["POLAR_ACCESS_TOKEN", "POLAR_WEBHOOK_SECRET", "POLAR_PRO_PRODUCT_ID"].every((k) => (process.env[k] ?? "") !== "");
+  const rt = createRuntime(prisma, { cipher: secretCipherFromEnv(), summarizer, billing });
   // S3: one client per installed workspace, each with its own stored bot token.
   const slack = installationGateway(rt, (token) => webSlackApi(new bolt.webApi.WebClient(token)));
   const lookup = createSlackLookup(rt, slack, (m, d) => log(m, d as Record<string, unknown>));
