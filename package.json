@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b",
     "spec:coverage": "node scripts/spec-coverage.mjs",
-    "replay:heytaco": "node scripts/replay-heytaco.mjs data/heytaco"
+    "replay:heytaco": "node scripts/replay-heytaco.mjs data/heytaco",
+    "import:heytaco": "node apps/cli/src/main.ts import data/heytaco",
+    "reconcile:heytaco": "node apps/cli/src/main.ts reconcile data/heytaco"
   },
   "devDependencies": {
     "@types/node": "^26.6.7",
