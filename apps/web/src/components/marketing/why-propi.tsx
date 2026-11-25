@@ -6,16 +6,16 @@ const reasons = [
     detail: "Read every line, change what you need. Improvements to Propi stay open for everyone who runs it.",
   },
   {
-    claim: "Self-hosted in one command",
-    detail: "One docker compose up on your own server, next to your own Postgres. No vendor in the middle of your team's thanks.",
+    claim: "Hosted or self-hosted",
+    detail: "Add it to Slack and we run it for you. Or run one docker compose up on your own server, next to your own Postgres.",
   },
   {
     claim: "Your data stays yours",
     detail: "Export gifts, ledger, redemptions and members as CSV at any time, with no date cap. Uninstalling never deletes data without a separate, explicit confirmation.",
   },
   {
-    claim: "No per-seat fees",
-    detail: "Invite the whole company. The bill does not grow with your headcount, because there is no bill.",
+    claim: "Fair, simple pricing",
+    detail: "Free up to 10 active members. After that, $2 per active member per month, and deactivated members never count.",
   },
 ];
 

@@ -47,8 +47,8 @@ services:
       restart_policy: { condition: on-failure, delay: 5s, max_attempts: 20 }
 
   # Slack (Socket Mode) + outbox relay + scheduler; /healthz on PORT for the container healthcheck.
-  # It restarts until migrate has run (a missing table fails the start). Until SLACK_BOT_TOKEN and
-  # SLACK_APP_TOKEN are in propi.env it runs health only (/healthz 200, slack "not_configured");
+  # It restarts until migrate has run (a missing table fails the start). Until SLACK_APP_TOKEN (or
+  # SLACK_SIGNING_SECRET) is in propi.env it runs health only (/healthz 200, slack "not_configured");
   # after adding them, redeploy (or `docker service update --force propi_server`).
   server:
     image: 127.0.0.1:5000/propi-server:${PROPI_TAG:-latest}

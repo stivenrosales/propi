@@ -7,7 +7,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-[1240px] flex-col gap-10 border-t-2 border-cream/10 px-4 py-14 sm:px-6 md:flex-row md:items-end md:justify-between lg:px-10">
         <div>
           <a href="/" aria-label="Propi home" className="inline-block">
-            <img src="/brand/propi-logo-on-dark.svg" alt="Propi" width={136} height={44} className="h-11 w-auto" />
+            <img src="/brand/propi-logo-on-dark.svg" alt="Propi" width={114} height={44} className="h-11 w-auto" />
           </a>
           <p className="mt-4 max-w-[34ch] text-cream/70">Open-source peer recognition for teams who say thanks.</p>
         </div>

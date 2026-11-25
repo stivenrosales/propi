@@ -19,7 +19,7 @@ export function SiteHeader() {
       </a>
       <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between gap-6 px-4 sm:px-6 lg:px-10">
         <a href="/" aria-label="Propi home" className="shrink-0">
-          <img src="/brand/propi-logo.svg" alt="Propi" width={111} height={36} className="h-9 w-auto" />
+          <img src="/brand/propi-logo.svg" alt="Propi" width={93} height={36} className="h-9 w-auto" />
         </a>
         <nav aria-label="Primary" className="hidden md:block">
           <ul className="flex items-center gap-1">

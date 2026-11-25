@@ -39,8 +39,8 @@ export function Hero() {
             className="rise mt-7 max-w-[30rem] text-lg leading-relaxed text-ink-muted text-pretty sm:text-xl"
             style={{ "--i": 2 } as React.CSSProperties}
           >
-            Propi turns a quick emoji in Slack into props your teammates can see, keep and spend. It runs on your
-            servers, with your data, and costs nothing per seat.
+            Propi turns a quick emoji in Slack into props your teammates can see, keep and spend. Add it to Slack in
+            a minute, free for teams up to 10, or run it on your own servers.
           </p>
 
           <div className="rise mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap" style={{ "--i": 3 } as React.CSSProperties}>
