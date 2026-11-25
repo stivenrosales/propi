@@ -3,7 +3,7 @@
 # Builds images from the public GitHub repo, pushes them to the VPS-local registry,
 # installs the Traefik route and (re)deploys the swarm stack "propi". Touches nothing else.
 set -euo pipefail
-BRANCH="${1:-feat/core}"
+BRANCH="${1:-main}"
 ROOT=/opt/propi
 mkdir -p "$ROOT"
 if [ ! -d "$ROOT/src/.git" ]; then

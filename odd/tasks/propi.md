@@ -33,10 +33,10 @@
 | T4 | S-ARCH, S-CONCURRENCY | delegated (parallel with T5, disjoint surfaces) | done, commit feat(db); 216 tests green on Postgres, 3 G5 todos wait for shop; dev pg on :55433 | db (Prisma) + app use cases + G5 suite |
 | T5 | S101–S105, S76a | delegated (parallel with T4) | done, commit feat(import); reconcile ok, 0 diffs, 4726/4726, 203/203, re-import 0 | HeyTaco importer + reconciliation |
 | T6 | S41–S100, S106–S108 | delegated (parallel writers, disjoint core folders) | done: 6 commits; verifier PASS after 1 correction (module persistence); 506 tests on Postgres; spec coverage 109/109 | values, shop, collab, rules, quests, stickers, levels, boards, notify, insights, milestones, pairing, api |
-| T7 | S9–S29, S48, S106 | delegated (parallel with T8, workflow propi-apps wf_225d19ca-c65) | in progress | Slack adapter (Bolt) + fixtures + manifest |
-| T8 | S-LANDING, S44, S80–S88 | delegated (landing in worktree branch feat/landing, parallel) | landing in progress; brand kit done (commit feat(brand)) | web: landing (Kie refs), admin, shop, dashboards |
-| T9 | S-DEPLOY | inline | todo; target: docker stack /opt/propi + traefik file config, host propi.swnb5v.easypanel.host (wildcard DNS + cert verified), same pattern as /opt/mmtp-cobranzas | Docker image, Easypanel project, migrate, smoke test |
-| T10 | all | independent verifier | todo | ledger, concurrency and migration review |
+| T7 | S9–S29, S48, S106 | delegated (parallel with T8, workflow propi-apps) | done: packages/slack + apps/server; verifier PASS after 1 correction (health-only start without tokens) | Slack adapter (Bolt) + fixtures + manifest |
+| T8 | S-LANDING, S44, S80–S88 | delegated | done: landing + Slack sign-in, member area, admin, TV, REST v1; security probes passed | web: landing (Kie refs), admin, shop, dashboards |
+| T9 | S-DEPLOY | inline | done: stack propi (postgres, migrate job, server, web) on haiku-vps; https://propi.swnb5v.easypanel.host 200; server /healthz ok, slack not_configured |
+| T10 | all | independent verifier | done per phase (3 verifiers, 4 blockers found and fixed, all rechecked PASS) | ledger, concurrency and migration review |
 
 ## Log
 
@@ -51,3 +51,4 @@
 - L9 (2026-11-25): GitHub repo https://github.com/stivenrosales/propi created public; main and feat/core pushed after a PII scan. Brand: Kie GPT Image 2.6 Flare, logo A (token) chosen and cropped into 3 SVG variants. Deploy route decided: Easypanel API needs panel credentials, so follow the existing /opt/mmtp-cobranzas pattern (swarm stack + traefik file provider) on the Easypanel wildcard domain.
 - L10 (2026-11-25): foundation workflow done. The verifier found a real blocker (an admin reversal was undone by a later edit); it was fixed with gift_closed and rechecked PASS. Parent spot check: typecheck ok, 216 tests on Postgres, reconcile ok. Landing merged (Next.js, standalone). Pushed. Modules workflow launched with 4 writers, an integrator and a verifier.
 - L11 (2026-11-25): modules workflow done; parent spot check: typecheck ok, 506/506 tests on Postgres, coverage 109/109, reconcile ok. Landing deployed live at https://propi.swnb5v.easypanel.host (200, valid TLS). Apps workflow launched: db persistence, then server and web in parallel, then a security verifier.
+- L12 (2026-11-25): apps workflow done. Parent check: 646 tests on Postgres, coverage 109/109, web typecheck ok. Full stack deployed (env with generated secrets at /opt/propi/propi.env, mode 600). Fixed web PORT clash and the migrate job. README with screenshots; main fast-forwarded to feat/core and pushed. REMAINING (human, per goal stop condition): create the Slack app from deploy/slack-manifest.yml, put SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_INSTALLER_USER_ID, SLACK_CLIENT_ID, SLACK_CLIENT_SECRET in /opt/propi/propi.env, redeploy, then confirm the Pearson install (shadow first) and the HeyTaco import with --until.
