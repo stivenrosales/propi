@@ -61,7 +61,36 @@ export function activeMemberCount(members: readonly { readonly active: boolean }
   return members.filter((m) => m.active).length;
 }
 
-export type ApplyBillingResult = "applied" | "duplicate" | "stale" | "unknown_workspace";
+/** S12a: a workspace with a live subscription (Pro by isProSubscription) cannot start a second checkout. */
+export function canStartCheckout(account: BillingAccount, now: Instant): boolean {
+  return account.subscription === null || !isProSubscription(account.subscription, now);
+}
+
+/** Statuses whose seats follow the active member count (S11); past_due and canceled are left alone. */
+const SEAT_SYNCED: readonly string[] = ["active", "trialing"];
+
+/**
+ * S11: the seat count to set on the workspace's Polar subscription, or null when nothing changes:
+ * comped, Free, not seat-based, not active/trialing, or the seats already equal the active members
+ * (at least 1 seat).
+ */
+export function seatTarget(account: BillingAccount, activeMembers: number): number | null {
+  const s = account.subscription;
+  if (account.comped || s === null || s.seats === null || !SEAT_SYNCED.includes(s.status)) return null;
+  const target = Math.max(1, activeMembers);
+  return target === s.seats ? null : target;
+}
+
+/** S11: the provider call that changes a subscription's seats (proration per the provider default). */
+export interface SeatUpdater {
+  updateSeats(subscriptionId: string, seats: number): Promise<void>;
+}
+
+/**
+ * "foreign" (S12a): the event is for another subscription id while the stored one is still live; it is
+ * recorded (idempotency) but does not replace the stored subscription.
+ */
+export type ApplyBillingResult = "applied" | "duplicate" | "stale" | "foreign" | "unknown_workspace";
 
 /** S6: subscription records and comped flags, kept per workspace. */
 export interface BillingStore {
@@ -69,9 +98,13 @@ export interface BillingStore {
   /**
    * Record one provider event and upsert its subscription in one transaction. Idempotent by
    * (provider, eventId): a replay returns "duplicate" and changes nothing; an event older than the
-   * stored record is recorded but does not overwrite it ("stale").
+   * stored record is recorded but does not overwrite it ("stale"). S12a: an event for a different
+   * subscription id than the stored one applies only when the stored one is no longer live
+   * (isProSubscription at receivedAt), otherwise "foreign".
    */
   applySubscriptionEvent(e: { readonly eventId: string; readonly type: string; readonly receivedAt: Instant; readonly subscription: SubscriptionRecord }): Promise<ApplyBillingResult>;
+  /** S11: the seats just set at the provider, stored on the subscription with that id only. */
+  recordSeats(ws: WorkspaceId, subscriptionId: string, seats: number): Promise<void>;
   /** Comped workspaces are treated as Pro and never billed. */
   setComped(ws: WorkspaceId, comped: boolean): Promise<void>;
 }

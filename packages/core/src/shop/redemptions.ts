@@ -60,6 +60,15 @@ function onBehalfOf(cmd: Redeem): OnBehalfOf | null {
 }
 
 /**
+ * S7: a Free workspace over its member limit takes no new redemptions, and (S12b) no contributions to
+ * group rewards; recognition is unaffected. Null plan = billing not configured (no limit).
+ */
+export function planLimitReject<T>(plan: PlanState | null | undefined): ShopDecision<T> | null {
+  if (plan?.overLimit !== true) return null;
+  return shopReject({ code: "plan_limit", limit: plan.limit ?? 0, activeMembers: plan.activeMembers });
+}
+
+/**
  * S50: check redeemable >= cost (S35), stock (S46), budget (S47) and prepaid balance (S108);
  * then debit, reserve stock and create the redemption in one decision.
  * S52: auto-approval skips pending; S55: an admin's manual redemption is approved by its maker;
@@ -70,8 +79,8 @@ export function decideRedeem(s: RedeemSnapshot, cmd: Redeem, now: Instant): Shop
   if (behalf === null) return shopReject({ code: "forbidden", need: "admin" });
   if (s.member === null) return shopReject({ code: "unknown_member", memberId: cmd.memberId });
   if (!s.member.active) return shopReject({ code: "inactive_member" });
-  // S7: a Free workspace over its member limit takes no new redemptions; recognition is unaffected.
-  if (s.plan?.overLimit === true) return shopReject({ code: "plan_limit", limit: s.plan.limit ?? 0, activeMembers: s.plan.activeMembers });
+  const limited = planLimitReject<ShopResults["Redeem"]>(s.plan);
+  if (limited !== null) return limited;
   const reward = s.reward;
   if (reward === null) return shopReject({ code: "reward_not_found" });
   if (reward.status !== "active") return shopReject({ code: "reward_not_active" });

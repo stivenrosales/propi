@@ -1,7 +1,8 @@
 // S6, S7: the Postgres billing store. Same contract as app/testing/billing.ts.
 // Each provider event is recorded once in billing_event (primary key = provider + event id) in the
-// same transaction as the subscription upsert, so a replayed webhook changes nothing.
-import type { ApplyBillingResult, BillingStore, Instant, SubscriptionRecord, WorkspaceId } from "@propi/core";
+// same transaction as the subscription upsert, so a replayed webhook changes nothing. S12a: one live
+// subscription per workspace; an event for another subscription id waits until the stored one ends.
+import { isProSubscription, type ApplyBillingResult, type BillingStore, type Instant, type SubscriptionRecord, type WorkspaceId } from "@propi/core";
 import type { PrismaClient } from "./client.ts";
 
 interface SubRow {
@@ -44,7 +45,8 @@ export function createDbBilling(prisma: PrismaClient): BillingStore {
     async applySubscriptionEvent(e): Promise<ApplyBillingResult> {
       const s = e.subscription;
       return prisma.$transaction(async (tx) => {
-        const known = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM workspace WHERE id = ${s.workspaceId}`;
+        // The workspace row lock serializes events per workspace, also before its first subscription row.
+        const known = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM workspace WHERE id = ${s.workspaceId} FOR UPDATE`;
         const ws = known.length === 0 ? null : s.workspaceId;
         const inserted = await tx.$executeRaw`
           INSERT INTO billing_event (provider, event_id, type, workspace_id, received_at)
@@ -52,6 +54,12 @@ export function createDbBilling(prisma: PrismaClient): BillingStore {
           ON CONFLICT (provider, event_id) DO NOTHING`;
         if (inserted === 0) return "duplicate";
         if (ws === null) return "unknown_workspace";
+        // S12a: a live subscription is replaced only by events for its own id.
+        const stored = await tx.$queryRaw<SubRow[]>`
+          SELECT workspace_id, provider, subscription_id, customer_id, status, current_period_end, cancel_at_period_end, seats, source_updated_at
+          FROM subscription WHERE workspace_id = ${s.workspaceId}`;
+        const prev = stored[0] === undefined ? null : toSub(stored[0]);
+        if (prev !== null && prev.subscriptionId !== s.subscriptionId && isProSubscription(prev, e.receivedAt)) return "foreign";
         const updated = await tx.$executeRaw`
           INSERT INTO subscription (workspace_id, provider, subscription_id, customer_id, status, current_period_end,
                                     cancel_at_period_end, seats, source_updated_at, updated_at)
@@ -66,6 +74,10 @@ export function createDbBilling(prisma: PrismaClient): BillingStore {
           WHERE subscription.source_updated_at <= EXCLUDED.source_updated_at`;
         return updated === 0 ? "stale" : "applied";
       });
+    },
+
+    async recordSeats(ws, subscriptionId, seats) {
+      await prisma.$executeRaw`UPDATE subscription SET seats = ${seats}, updated_at = now() WHERE workspace_id = ${ws} AND subscription_id = ${subscriptionId}`;
     },
 
     async setComped(ws, comped) {

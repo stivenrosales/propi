@@ -15,10 +15,10 @@ function signed(id: string, body: string, at = ts) {
   return new Headers({ "webhook-id": id, "webhook-timestamp": at, "webhook-signature": `v1,${sig}` });
 }
 
-const event = (status = "active", modified = "2026-11-25T10:00:00Z") =>
+const event = (status = "active", modified = "2026-11-25T10:00:00Z", id = "sub_1") =>
   JSON.stringify({
     type: "subscription.updated",
-    data: { id: "sub_1", status, current_period_end: "2026-12-25T00:00:00Z", cancel_at_period_end: false, created_at: "2026-11-25T00:00:00Z", modified_at: modified, metadata: { workspaceId: "ws-1" }, customer: { id: "cus_1", external_id: "ws-1" } },
+    data: { id, status, current_period_end: "2026-12-25T00:00:00Z", cancel_at_period_end: false, created_at: "2026-11-25T00:00:00Z", modified_at: modified, metadata: { workspaceId: "ws-1" }, customer: { id: "cus_1", external_id: "ws-1" } },
   });
 
 describe("S6 Polar webhook endpoint", () => {
@@ -52,5 +52,16 @@ describe("S6 Polar webhook endpoint", () => {
   test("a signed body that is not JSON is a 400", async () => {
     const billing = createMemoryBillingStore();
     expect((await handlePolarWebhook({ secret: SECRET, billing, now: NOW }, signed("evt_2", "nope"), "nope")).status).toBe(400);
+  });
+
+  test("S12a: an event for another subscription id does not replace the live one; its own events still apply", async () => {
+    const billing = createMemoryBillingStore();
+    const first = event("active", "2026-11-25T10:00:00Z", "sub_1");
+    await handlePolarWebhook({ secret: SECRET, billing, now: NOW }, signed("evt_1", first), first);
+    const other = event("active", "2026-11-25T11:00:00Z", "sub_2");
+    expect(await handlePolarWebhook({ secret: SECRET, billing, now: NOW }, signed("evt_2", other), other)).toEqual({ status: 200, result: "foreign" });
+    expect((await billing.account("ws-1" as WorkspaceId)).subscription?.subscriptionId).toBe("sub_1");
+    const own = event("past_due", "2026-11-25T11:30:00Z", "sub_1");
+    expect(await handlePolarWebhook({ secret: SECRET, billing, now: NOW }, signed("evt_3", own), own)).toEqual({ status: 200, result: "applied" });
   });
 });

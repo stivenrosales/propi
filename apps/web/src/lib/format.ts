@@ -78,6 +78,8 @@ export function errorMessage(error: { readonly code: string; readonly [k: string
       return "Billing is not configured on this Propi server.";
     case "billing_unavailable":
       return "Billing is unavailable right now. Try again in a minute.";
+    case "already_subscribed":
+      return "This workspace already has a Pro subscription. Use Manage billing to change it.";
     case "budget_exceeded":
       return "This month's redemption budget would be exceeded.";
     case "reason_required":

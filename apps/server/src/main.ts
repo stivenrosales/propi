@@ -3,6 +3,7 @@
 // §2.4) and the HeyTaco import into Postgres. Node 24 runs the TypeScript directly.
 //   node apps/server/src/main.ts            serve (default)
 //   node apps/server/src/main.ts import <dir> --team <T…> [--until <ts>]
+import { syncSeats } from "@propi/app";
 import { createPrismaClient, secretCipherFromEnv } from "@propi/db";
 import bolt from "@slack/bolt";
 import { createBoltApp } from "./bolt.ts";
@@ -18,6 +19,7 @@ import { createScheduler } from "./scheduler.ts";
 import { webSlackApi } from "./slack-api.ts";
 import type { Runtime } from "./runtime.ts";
 import { openRouterSummarizer } from "./summarizer.ts";
+import { polarSeatUpdater, polarSeatsConfig } from "./polar.ts";
 
 const log = (msg: string, data?: Record<string, unknown>) => console.log(JSON.stringify({ at: new Date().toISOString(), msg, ...data }));
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -51,6 +53,9 @@ async function importMain(argv: readonly string[]): Promise<number> {
 }
 
 /** Runs `f` every `everyMs`, never overlapping itself; errors are logged and the loop goes on. */
+/** S11: how often seat sync runs. Polar prorates each change, so hourly is enough. */
+const SEAT_SYNC_MS = 60 * 60_000;
+
 function loop(name: string, everyMs: number, f: () => Promise<void>, state: HealthState): () => Promise<void> {
   let stopped = false;
   let running: Promise<void> = Promise.resolve();
@@ -134,8 +139,8 @@ async function serve(): Promise<number> {
     return 0;
   }
   const summarizer = config.openRouter === null ? null : openRouterSummarizer(config.openRouter);
-  const billing = ["POLAR_ACCESS_TOKEN", "POLAR_WEBHOOK_SECRET", "POLAR_PRO_PRODUCT_ID"].every((k) => (process.env[k] ?? "") !== "");
-  const rt = createRuntime(prisma, { cipher: secretCipherFromEnv(), summarizer, billing });
+  const polar = polarSeatsConfig();
+  const rt = createRuntime(prisma, { cipher: secretCipherFromEnv(), summarizer, billing: polar !== null });
   // S3: one client per installed workspace, each with its own stored bot token.
   const slack = installationGateway(rt, (token) => webSlackApi(new bolt.webApi.WebClient(token)));
   const lookup = createSlackLookup(rt, slack, (m, d) => log(m, d as Record<string, unknown>));
@@ -182,9 +187,25 @@ async function serve(): Promise<number> {
       )
     : async () => undefined;
 
+  // S11: hourly, each Pro subscription's seats in Polar follow the workspace's active members.
+  const billingStore = rt.billing;
+  const stopSeats =
+    polar !== null && billingStore !== null
+      ? loop(
+          "seats",
+          SEAT_SYNC_MS,
+          async () => {
+            const r = await syncSeats({ billing: billingStore, directory: rt.ports.directory, clock: rt.ports.clock, seats: polarSeatUpdater(polar) }, await workspaces());
+            for (const u of r.updated) log("seats updated", { workspaceId: u.workspaceId, from: u.from, to: u.to });
+            for (const f of r.failed) log("seats failed", { workspaceId: f.workspaceId, error: f.error });
+          },
+          health,
+        )
+      : async () => undefined;
+
   await untilSignal();
   health.slack = "starting";
-  await Promise.allSettled([app.stop(), stopRelay(), stopScheduler()]);
+  await Promise.allSettled([app.stop(), stopRelay(), stopScheduler(), stopSeats()]);
   await prisma.$disconnect();
   return 0;
 }

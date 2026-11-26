@@ -1,7 +1,8 @@
 // S56-S59: collaborative rewards as pure deciders. Docs: docs/statecharts/collab.
 import { isEntryAmount, isPosInt, type Instant, type MemberId, type PosInt } from "../shared/types.ts";
 import type { MemberRecord } from "../members/members.ts";
-import { collabRefunds, redemptionEvent } from "./redemptions.ts";
+import type { PlanState } from "../billing/index.ts";
+import { collabRefunds, planLimitReject, redemptionEvent } from "./redemptions.ts";
 import { canManageShop, shopAccept, shopEntry, shopReject, sortedIds } from "./rules.ts";
 import type { CloseCollab, Collab, CollabId, Contribute, CreateCollab, Redemption, RedemptionId, ShopDecision, ShopEvent, ShopResults } from "./types.ts";
 
@@ -35,6 +36,8 @@ export interface ContributeSnapshot {
   readonly contributions: ReadonlyMap<MemberId, number>;
   /** Used only when this contribution reaches the goal (S57). */
   readonly redemptionId: RedemptionId;
+  /** S12b: the workspace plan; absent or null when billing is not configured (no limit). */
+  readonly plan?: PlanState | null;
 }
 
 /**
@@ -47,6 +50,8 @@ export function decideContribute(s: ContributeSnapshot, cmd: Contribute, now: In
   if (!isPosInt(cmd.amount)) return shopReject({ code: "invalid_amount" });
   if (s.member === null) return shopReject({ code: "unknown_member", memberId: cmd.memberId });
   if (!s.member.active) return shopReject({ code: "inactive_member" });
+  const limited = planLimitReject<ShopResults["Contribute"]>(s.plan);
+  if (limited !== null) return limited;
   const c = s.collab;
   if (c === null) return shopReject({ code: "collab_not_found" });
   if (!isOpen(c, now)) return shopReject({ code: "collab_closed" });

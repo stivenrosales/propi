@@ -190,6 +190,7 @@ export const shopHandlers: readonly RegisteredHandler[] = [
         collab: await tx.collab(cmd.collabId),
         contributions: await tx.contributions(cmd.collabId),
         redemptionId: ctx.ids.next("redemption"),
+        plan: ctx.plan === undefined ? null : await ctx.plan(cmd.workspaceId),
       };
     },
     decide: decideContribute,

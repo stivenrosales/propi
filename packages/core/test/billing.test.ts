@@ -1,6 +1,6 @@
 // S6, S7: plan entitlement from the subscription record and the active member count.
 import { describe, expect, test } from "vitest";
-import { FREE_MEMBER_LIMIT, activeMemberCount, planState, type Instant, type SubscriptionRecord, type WorkspaceId } from "../src/index.ts";
+import { FREE_MEMBER_LIMIT, activeMemberCount, canStartCheckout, planState, seatTarget, type Instant, type SubscriptionRecord, type WorkspaceId } from "../src/index.ts";
 
 const NOW = Date.UTC(2026, 10, 25) as Instant;
 const DAY = 86_400_000;
@@ -51,5 +51,37 @@ describe("S7 entitlement", () => {
 
   test("active members are the members not deactivated", () => {
     expect(activeMemberCount([{ active: true }, { active: false }, { active: true }])).toBe(2);
+  });
+});
+
+describe("S11 seats follow active members", () => {
+  test("an active or trialing Pro subscription targets the active member count when it differs", () => {
+    expect(seatTarget({ subscription: sub({ seats: 12 }), comped: false }, 14)).toBe(14);
+    expect(seatTarget({ subscription: sub({ status: "trialing", seats: 12 }), comped: false }, 3)).toBe(3);
+  });
+
+  test("no update when the seats already match, never below 1 seat", () => {
+    expect(seatTarget({ subscription: sub({ seats: 12 }), comped: false }, 12)).toBeNull();
+    expect(seatTarget({ subscription: sub({ seats: 1 }), comped: false }, 0)).toBeNull();
+    expect(seatTarget({ subscription: sub({ seats: 4 }), comped: false }, 0)).toBe(1);
+  });
+
+  test("comped, Free, not seat-based and not active/trialing subscriptions are never synced", () => {
+    expect(seatTarget({ subscription: sub(), comped: true }, 30)).toBeNull();
+    expect(seatTarget({ subscription: null, comped: false }, 30)).toBeNull();
+    expect(seatTarget({ subscription: sub({ seats: null }), comped: false }, 30)).toBeNull();
+    for (const status of ["past_due", "canceled", "incomplete", "unpaid"]) expect(seatTarget({ subscription: sub({ status }), comped: false }, 30)).toBeNull();
+  });
+});
+
+describe("S12a one live subscription per workspace", () => {
+  test("checkout is refused while a subscription is live (active, trialing, past_due, canceled with period left)", () => {
+    for (const s of [sub(), sub({ status: "trialing" }), sub({ status: "past_due" }), sub({ status: "canceled" })]) expect(canStartCheckout({ subscription: s, comped: false }, NOW)).toBe(false);
+  });
+
+  test("checkout is allowed with no subscription or one that is no longer live", () => {
+    expect(canStartCheckout({ subscription: null, comped: false }, NOW)).toBe(true);
+    expect(canStartCheckout({ subscription: sub({ status: "canceled", currentPeriodEnd: (NOW - DAY) as Instant }), comped: false }, NOW)).toBe(true);
+    expect(canStartCheckout({ subscription: sub({ status: "incomplete_expired" }), comped: false }, NOW)).toBe(true);
   });
 });

@@ -12,7 +12,7 @@ beforeAll(async () => {
   if (hasDatabase) {
     db = await createTestDatabase();
     pg = db.client();
-    for (const ws of ["ws-b1", "ws-b2"]) await pg.$executeRawUnsafe(`INSERT INTO workspace (id, settings) VALUES ($1, '{}'::jsonb)`, ws);
+    for (const ws of ["ws-b1", "ws-b2", "ws-b3", "ws-b4"]) await pg.$executeRawUnsafe(`INSERT INTO workspace (id, settings) VALUES ($1, '{}'::jsonb)`, ws);
   }
 }, 120_000);
 afterAll(async () => {
@@ -68,5 +68,46 @@ describe.skipIf(!hasDatabase)("billing store (S6)", () => {
     expect((await billing.account("ws-b2" as WorkspaceId)).comped).toBe(false);
     // The store plugs into createApp as the plan source.
     expect(createApp(ports, { billing })).toBeDefined();
+  });
+});
+
+describe.skipIf(!hasDatabase)("billing store one live subscription per workspace (S12a) and seats (S11)", () => {
+  const W3 = "ws-b3" as WorkspaceId;
+  const W4 = "ws-b4" as WorkspaceId;
+  const apply = (billing: ReturnType<typeof createDbBilling>, eventId: string, s: SubscriptionRecord, receivedAt: Instant = T0) =>
+    billing.applySubscriptionEvent({ eventId, type: "subscription.updated", receivedAt, subscription: s });
+
+  test("an event for another subscription id never overwrites a live stored one; events for the stored id still apply", async () => {
+    const billing = createDbBilling(pg!);
+    const live = sub({ workspaceId: W3, subscriptionId: "sub_live", sourceUpdatedAt: T0 });
+    expect(await apply(billing, "e3_1", live)).toBe("applied");
+    const foreign = sub({ workspaceId: W3, subscriptionId: "sub_other", customerId: "cus_x", seats: 1, sourceUpdatedAt: (T0 + 1000) as Instant });
+    expect(await apply(billing, "e3_2", foreign)).toBe("foreign");
+    expect((await billing.account(W3)).subscription).toEqual(live);
+    const pastDue = sub({ workspaceId: W3, subscriptionId: "sub_live", status: "past_due", sourceUpdatedAt: (T0 + 2000) as Instant });
+    expect(await apply(billing, "e3_3", pastDue)).toBe("applied");
+    expect(await apply(billing, "e3_4", { ...foreign, sourceUpdatedAt: (T0 + 3000) as Instant })).toBe("foreign");
+    // canceled with period left is still live
+    const canceled = { ...pastDue, status: "canceled", sourceUpdatedAt: (T0 + 4000) as Instant };
+    expect(await apply(billing, "e3_5", canceled)).toBe("applied");
+    expect(await apply(billing, "e3_6", { ...foreign, sourceUpdatedAt: (T0 + 5000) as Instant })).toBe("foreign");
+    expect((await billing.account(W3)).subscription?.subscriptionId).toBe("sub_live");
+  });
+
+  test("once the stored subscription is no longer live, another subscription id applies as today", async () => {
+    const billing = createDbBilling(pg!);
+    const ended = sub({ workspaceId: W4, subscriptionId: "sub_old", status: "canceled", currentPeriodEnd: (T0 - 1000) as Instant, sourceUpdatedAt: T0 });
+    expect(await apply(billing, "e4_1", ended)).toBe("applied");
+    const next = sub({ workspaceId: W4, subscriptionId: "sub_new", sourceUpdatedAt: (T0 + 1000) as Instant });
+    expect(await apply(billing, "e4_2", next)).toBe("applied");
+    expect((await billing.account(W4)).subscription).toEqual(next);
+  });
+
+  test("S11: recordSeats stores the seats of the stored subscription id only", async () => {
+    const billing = createDbBilling(pg!);
+    await billing.recordSeats(W4, "sub_other", 99);
+    expect((await billing.account(W4)).subscription?.seats).toBe(12);
+    await billing.recordSeats(W4, "sub_new", 15);
+    expect((await billing.account(W4)).subscription?.seats).toBe(15);
   });
 });
