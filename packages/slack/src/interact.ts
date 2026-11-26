@@ -88,7 +88,8 @@ export function actionCommand(payload: SlackBlockAction, ws: WorkspaceId, actor:
       if (actor.kind !== "member") return null;
       const cut = value.lastIndexOf("#");
       const [rewardId = "", variantId = null] = (cut < 0 ? value : value.slice(0, cut)).split("|");
-      const quantity = cut < 0 ? 1 : Number(value.slice(cut + 1));
+      const raw = cut < 0 ? "1" : value.slice(cut + 1);
+      const quantity = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
       return { type: "Redeem", key: slackKeys.redeem(team, user, action.action_ts) as CommandKey, ...base, memberId: actor.memberId as MemberId, rewardId, variantId, quantity };
     }
     case ACTIONS.approveRedemption:

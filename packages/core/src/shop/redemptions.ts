@@ -98,6 +98,7 @@ export function decideRedeem(s: RedeemSnapshot, cmd: Redeem, now: Instant): Shop
   if (s.redeemable < cost) return shopReject({ code: "insufficient_redeemable", cost, redeemable: s.redeemable });
 
   const money = reward.internalCost === null ? null : { minor: reward.internalCost.minor * quantity, currency: reward.internalCost.currency };
+  if (money !== null && !Number.isSafeInteger(money.minor)) return shopReject({ code: "invalid_quantity" });
   const budget = s.settings.monthlyBudget;
   const budgeted = budget !== null && money !== null;
   if (budgeted && s.budgetSpent + money.minor > budget.minor) {

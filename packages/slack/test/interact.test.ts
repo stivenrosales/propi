@@ -67,6 +67,14 @@ describe("buttons", () => {
     });
   });
 
+  test("S2: a picker value that is not plain digits becomes an invalid quantity", () => {
+    const p = fixture<SlackBlockAction>("block_actions.redeem.json");
+    for (const v of ["1e3", "0x10", " 3"]) {
+      const picked = { action_id: "propi_redeem_quantity", action_ts: "1764083600.001100", selected_option: { value: `reward-tee#${v}` } };
+      expect((actionCommand({ ...p, actions: [picked] }, WS, ana, NOW) as { quantity: number }).quantity).toBeNaN();
+    }
+  });
+
   test("S48: a variant button carries <reward>|<variant>", () => {
     const p = fixture<SlackBlockAction>("block_actions.redeem.json");
     const cmd = actionCommand({ ...p, actions: [{ ...p.actions[0]!, value: "reward-tee|size-m" }] }, WS, ana, NOW);

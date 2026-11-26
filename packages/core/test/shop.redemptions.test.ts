@@ -342,6 +342,11 @@ describe("S2 batch redemption: one redemption carries a quantity", () => {
     for (const n of [0, -1, 1.5, Number.NaN]) expect(decideRedeem(snap(), qty(n), NOW).outcome).toEqual({ ok: false, error: { code: "invalid_quantity" } });
   });
 
+  test("S2: a batch whose internal cost leaves the safe integer range is refused", () => {
+    const huge = reward({ internalCost: { minor: 2 ** 52, currency: "PEN" } });
+    expect(decideRedeem(snap({ reward: huge }), qty(3), NOW).outcome).toEqual({ ok: false, error: { code: "invalid_quantity" } });
+  });
+
   test("S2: a Redeem without quantity (old clients) is one unit, exactly as before", () => {
     const before = decideRedeem(snap({ reward: reward({ stock: 2 }) }), redeemCmd(), NOW);
     expect(before.outcome).toEqual({ ok: true, value: { redemptionId: "rd-1", state: "pending", cost: 12, redeemable: 30 } });

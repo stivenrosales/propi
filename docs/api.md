@@ -114,6 +114,8 @@ An admin registers an endpoint URL. Each endpoint gets its own signing secret an
 | Rule awards | `rule.awarded` |
 | Member changes | `member.created`, `member.updated`, `member.deactivated` |
 
+Redemption payloads carry `quantity` (units redeemed in one step, 1 for older redemptions); `cost` is the total for all units.
+
 Internal events are never sent. Examples: the private over-allowance notice to a giver, and the admin audit trail.
 
 ### Payload
