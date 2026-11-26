@@ -35,7 +35,7 @@ export default function TermsPage() {
       <LegalSection id="plans" title="Plans and billing">
         <ul>
           <li>
-            <strong>Free</strong>: up to 10 active members per workspace.
+            <strong>Free</strong>: up to {site.pricing.freeActiveMembers} active members per workspace.
           </li>
           <li>
             <strong>Pro</strong>: $2 per active member per month, billed by Polar, our merchant of record. Seats follow

@@ -7,8 +7,9 @@ import { T0, WS, activeReward, contribute, createCollab, redeem, shopSetup } fro
 import { giveCmd, mention, msg } from "./setup.ts";
 
 // shopSetup has 6 active members (ana, bob, diana, lind, boss, rita) and one deactivated (gone).
-const toEleven = ["e1", "e2", "e3", "e4", "e5"];
-const toTen = ["e1", "e2", "e3", "e4"];
+// The Free limit is 5 active members: the base setup is one over it; deactivating lind brings it to 5.
+const overLimit = {};
+const atLimit = { inactive: ["lind"] };
 
 const proSub = (over: Partial<SubscriptionRecord> = {}): SubscriptionRecord => ({
   workspaceId: WS,
@@ -23,8 +24,8 @@ const proSub = (over: Partial<SubscriptionRecord> = {}): SubscriptionRecord => (
   ...over,
 });
 
-function billed(members: string[], account: { subscription?: SubscriptionRecord; comped?: boolean } = {}) {
-  const s = shopSetup({ members });
+function billed(setup: { members?: string[]; inactive?: string[] }, account: { subscription?: SubscriptionRecord; comped?: boolean } = {}) {
+  const s = shopSetup(setup);
   const billing = createMemoryBillingStore();
   if (account.subscription) billing.put(account.subscription);
   if (account.comped) void billing.setComped(WS, true);
@@ -33,17 +34,17 @@ function billed(members: string[], account: { subscription?: SubscriptionRecord;
 }
 
 describe("S7 plan limit on redemptions", () => {
-  test("a Free workspace over 10 active members cannot create a redemption", async () => {
-    const { run, fund, redeemable } = billed(toEleven);
+  test("a Free workspace over 5 active members cannot create a redemption", async () => {
+    const { run, fund, redeemable } = billed(overLimit);
     const rw = await activeReward(run as never);
     await fund("ana", 20);
     const r = await run(redeem("ana", rw));
-    expect(r).toEqual({ ok: false, replayed: false, error: { code: "plan_limit", limit: 10, activeMembers: 11 } });
+    expect(r).toEqual({ ok: false, replayed: false, error: { code: "plan_limit", limit: 5, activeMembers: 6 } });
     expect(await redeemable("ana")).toBe(20);
   });
 
-  test("a Free workspace with 10 active members (deactivated ones not counted) redeems as before", async () => {
-    const { run, fund } = billed(toTen);
+  test("a Free workspace with 5 active members (deactivated ones not counted) redeems as before", async () => {
+    const { run, fund } = billed(atLimit);
     const rw = await activeReward(run as never);
     await fund("ana", 20);
     expect((await run(redeem("ana", rw))).ok).toBe(true);
@@ -51,7 +52,7 @@ describe("S7 plan limit on redemptions", () => {
 
   test("an active Pro subscription and a comped workspace redeem over the limit", async () => {
     for (const account of [{ subscription: proSub() }, { comped: true }]) {
-      const { run, fund } = billed(toEleven, account);
+      const { run, fund } = billed(overLimit, account);
       const rw = await activeReward(run as never);
       await fund("ana", 20);
       expect((await run(redeem("ana", rw))).ok).toBe(true);
@@ -59,26 +60,26 @@ describe("S7 plan limit on redemptions", () => {
   });
 
   test("gifts are never blocked by the plan", async () => {
-    const { app } = billed(toEleven);
+    const { app } = billed(overLimit);
     const r = await app.execute(giveCmd("ana", msg("@Bob thanks :taco:", [mention("bob")], 1)));
     expect(r.ok).toBe(true);
   });
 
   test("without a billing store (self-host, billing not configured) redemptions work as before", async () => {
-    const { run, fund } = shopSetup({ members: toEleven });
+    const { run, fund } = shopSetup(overLimit);
     const rw = await activeReward(run);
     await fund("ana", 20);
     expect((await run(redeem("ana", rw))).ok).toBe(true);
   });
 
   test("workspacePlan reads the plan state admins see", async () => {
-    const { mem, billing } = billed(toEleven);
-    expect(await workspacePlan({ billing, directory: mem.ports.directory, clock: mem.ports.clock }, WS)).toEqual({ plan: "free", activeMembers: 11, limit: 10, overLimit: true });
+    const { mem, billing } = billed(overLimit);
+    expect(await workspacePlan({ billing, directory: mem.ports.directory, clock: mem.ports.clock }, WS)).toEqual({ plan: "free", activeMembers: 6, limit: 5, overLimit: true });
   });
 });
 
 describe("S12b plan limit on group reward contributions", () => {
-  async function collab(members: string[], account: { subscription?: SubscriptionRecord } = {}) {
+  async function collab(members: { members?: string[]; inactive?: string[] }, account: { subscription?: SubscriptionRecord } = {}) {
     const s = billed(members, account);
     const c = await s.run(createCollab(12));
     if (!c.ok) throw new Error("createCollab failed");
@@ -86,15 +87,15 @@ describe("S12b plan limit on group reward contributions", () => {
     return { ...s, collabId: (c.value as { collabId: string }).collabId };
   }
 
-  test("a Free workspace over 10 active members cannot contribute; nothing is spent", async () => {
-    const { run, collabId, redeemable } = await collab(toEleven);
-    expect(await run(contribute("ana", collabId, 4))).toEqual({ ok: false, replayed: false, error: { code: "plan_limit", limit: 10, activeMembers: 11 } });
+  test("a Free workspace over 5 active members cannot contribute; nothing is spent", async () => {
+    const { run, collabId, redeemable } = await collab(overLimit);
+    expect(await run(contribute("ana", collabId, 4))).toEqual({ ok: false, replayed: false, error: { code: "plan_limit", limit: 5, activeMembers: 6 } });
     expect(await redeemable("ana")).toBe(20);
   });
 
   test("within the limit, or on Pro, contributions work as before", async () => {
-    for (const [members, account] of [[toTen, {}], [toEleven, { subscription: proSub() }]] as const) {
-      const { run, collabId } = await collab([...members], account);
+    for (const [members, account] of [[atLimit, {}], [overLimit, { subscription: proSub() }]] as const) {
+      const { run, collabId } = await collab(members, account);
       expect((await run(contribute("ana", collabId, 4))).ok).toBe(true);
     }
   });

@@ -40,7 +40,7 @@ export function Hero() {
             style={{ "--i": 2 } as React.CSSProperties}
           >
             Propi turns a quick emoji in Slack into props your teammates can see, keep and spend. Add it to Slack in
-            a minute, free for teams up to 10, or run it on your own servers.
+            a minute, free for teams up to {site.pricing.freeActiveMembers}, or run it on your own servers.
           </p>
 
           <p

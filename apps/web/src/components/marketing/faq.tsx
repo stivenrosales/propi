@@ -1,7 +1,8 @@
+import { site } from "@/content/site";
 const faqs = [
   {
     q: "How much does Propi cost?",
-    a: "The hosted Propi is free for teams up to 10 active members. Bigger teams pay $2 per active member per month for Pro. Propi is also open source under the AGPL-3.0 license, so you can host it yourself for free.",
+    a: `The hosted Propi is free for teams up to ${site.pricing.freeActiveMembers} active members. Bigger teams pay $2 per active member per month for Pro. Propi is also open source under the AGPL-3.0 license, so you can host it yourself for free.`,
   },
   {
     q: "Do we have to use tacos?",

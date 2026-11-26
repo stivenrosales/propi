@@ -18,13 +18,13 @@ const sub = (over: Partial<SubscriptionRecord> = {}): SubscriptionRecord => ({
 });
 
 describe("S7 entitlement", () => {
-  test("the Free plan allows up to 10 active members", () => {
-    expect(FREE_MEMBER_LIMIT).toBe(10);
-    expect(planState({ subscription: null, comped: false }, 10, NOW)).toEqual({ plan: "free", activeMembers: 10, limit: 10, overLimit: false });
+  test("the Free plan allows up to 5 active members", () => {
+    expect(FREE_MEMBER_LIMIT).toBe(5);
+    expect(planState({ subscription: null, comped: false }, 5, NOW)).toEqual({ plan: "free", activeMembers: 5, limit: 5, overLimit: false });
   });
 
-  test("a Free workspace with 11 active members is over the limit", () => {
-    expect(planState({ subscription: null, comped: false }, 11, NOW)).toEqual({ plan: "free", activeMembers: 11, limit: 10, overLimit: true });
+  test("a Free workspace with 6 active members is over the limit", () => {
+    expect(planState({ subscription: null, comped: false }, 6, NOW)).toEqual({ plan: "free", activeMembers: 6, limit: 5, overLimit: true });
   });
 
   test("an active Pro subscription lifts the limit", () => {
@@ -40,7 +40,7 @@ describe("S7 entitlement", () => {
 
   test("a revoked subscription (canceled, period over) falls back to Free", () => {
     const revoked = sub({ status: "canceled", currentPeriodEnd: (NOW - DAY) as Instant });
-    expect(planState({ subscription: revoked, comped: false }, 30, NOW)).toEqual({ plan: "free", activeMembers: 30, limit: 10, overLimit: true });
+    expect(planState({ subscription: revoked, comped: false }, 30, NOW)).toEqual({ plan: "free", activeMembers: 30, limit: 5, overLimit: true });
     expect(planState({ subscription: sub({ status: "unpaid" }), comped: false }, 30, NOW).plan).toBe("free");
     expect(planState({ subscription: sub({ status: "incomplete" }), comped: false }, 30, NOW).plan).toBe("free");
   });

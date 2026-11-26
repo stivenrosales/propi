@@ -11,7 +11,7 @@ describe("landing", () => {
   test("site exposes the sign-in and app entry points and the plan facts", () => {
     expect(site.signInHref).toBe("/signin");
     expect(site.appHref).toBe("/app");
-    expect(site.pricing.freeActiveMembers).toBe(10);
+    expect(site.pricing.freeActiveMembers).toBe(5);
     expect(site.pricing.proPerActiveMemberUsd).toBe(2);
     expect(site.pricing.billedBy).toBe("Polar");
   });
@@ -46,7 +46,7 @@ describe("landing", () => {
 
   test("the pricing facts match the existing FAQ and why-propi copy", () => {
     const faq = read("components/marketing/faq.tsx");
-    expect(faq).toContain(`up to ${site.pricing.freeActiveMembers} active members`);
+    expect(faq).toContain("up to ${site.pricing.freeActiveMembers} active members");
     expect(faq).toContain(`$${site.pricing.proPerActiveMemberUsd} per active member per month`);
     const why = read("components/marketing/why-propi.tsx");
     expect(why).toContain("deactivated members never count");

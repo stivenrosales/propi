@@ -6,7 +6,7 @@
 // Recognition is never limited by the plan; only new reward shop redemptions are (see decideRedeem).
 import type { Instant, WorkspaceId } from "../shared/types.ts";
 
-export const FREE_MEMBER_LIMIT = 10;
+export const FREE_MEMBER_LIMIT = 5;
 
 export type PlanName = "free" | "pro" | "comped";
 

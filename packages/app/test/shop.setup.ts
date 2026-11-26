@@ -14,12 +14,12 @@ export type ShopResult<C extends ShopCommand> =
   | { readonly ok: true; readonly replayed: boolean; readonly value: ShopResults[C["type"]] }
   | { readonly ok: false; readonly replayed: boolean; readonly error: ShopFailure };
 
-export function shopSetup(opts: MemoryOptions & { prepaid?: number; members?: string[] } = {}) {
+export function shopSetup(opts: MemoryOptions & { prepaid?: number; members?: string[]; inactive?: string[] } = {}) {
   const giftCards = opts.prepaid === undefined ? null : createGiftCardFake({ minor: opts.prepaid, currency: "PEN" });
   // The memory ports carry the shop store; shopHandlers are registered in HANDLERS.
   const mem = createMemoryPorts({ now: T0, ...opts, giftCards });
   mem.addWorkspace(WS, defaultSettings({ timezone: "America/Lima" }));
-  for (const id of ["ana", "bob", "diana", "lind", ...(opts.members ?? [])]) mem.addMember(WS, { id: m(id), role: "member", active: true, dailyLimitOverride: null });
+  for (const id of ["ana", "bob", "diana", "lind", ...(opts.members ?? [])]) mem.addMember(WS, { id: m(id), role: "member", active: !(opts.inactive ?? []).includes(id), dailyLimitOverride: null });
   mem.addMember(WS, { id: m("boss"), role: "admin", active: true, dailyLimitOverride: null });
   mem.addMember(WS, { id: m("rita"), role: "approver", active: true, dailyLimitOverride: null });
   mem.addMember(WS, { id: m("gone"), role: "member", active: false, dailyLimitOverride: null });

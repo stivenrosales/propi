@@ -1,3 +1,4 @@
+import { site } from "@/content/site";
 import { Sparkle } from "@/components/ui/primitives";
 
 const reasons = [
@@ -15,7 +16,7 @@ const reasons = [
   },
   {
     claim: "Fair, simple pricing",
-    detail: "Free up to 10 active members. After that, $2 per active member per month, and deactivated members never count.",
+    detail: `Free up to ${site.pricing.freeActiveMembers} active members. After that, $2 per active member per month, and deactivated members never count.`,
   },
 ];
 

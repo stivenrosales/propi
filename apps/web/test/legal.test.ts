@@ -33,7 +33,7 @@ describe("legal pages", () => {
       expect(privacy, fact).toContain(fact);
     }
     const terms = read("app/(marketing)/terms/page.tsx");
-    for (const fact of ["AGPL-3.0", "Peru", "10 active members", "$2"]) {
+    for (const fact of ["AGPL-3.0", "Peru", "site.pricing.freeActiveMembers", "$2"]) {
       expect(terms, fact).toContain(fact);
     }
   });
