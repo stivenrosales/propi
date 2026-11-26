@@ -35,7 +35,8 @@ export async function saveWorkspaceLanguageAction(form: FormData) {
   const parsed = parseWorkspaceLanguage(form);
   if (!parsed.ok) return failWith("/admin/settings");
   await propi().admin.updateSettings(v.ws, (s) => ({ ...s, language: parsed.value }));
-  finish("/admin/settings", { ok: true }, language.t(await getLocale())("settings.saved"));
+  const L = await getLocale();
+  finish("/admin/settings", { ok: true }, language.t(L)("settings.saved"), L);
 }
 
 /** S4c: the member's own language (Profile): auto, en or es. */
@@ -44,5 +45,6 @@ export async function setMemberLanguageAction(form: FormData) {
   const res = await saveMemberLanguage(propi().admin, v, form.get("language"));
   if (!res.ok) return failWith("/app/profile");
   // Read after the write: the flash is in the language just chosen.
-  finish("/app/profile", { ok: true }, language.t(await getLocale())("profile.saved"));
+  const L = await getLocale();
+  finish("/app/profile", { ok: true }, language.t(L)("profile.saved"), L);
 }

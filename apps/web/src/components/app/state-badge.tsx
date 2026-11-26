@@ -1,3 +1,5 @@
+import { getLocale } from "@/i18n/locale";
+import { shell, stateName } from "@/i18n/app-shell.messages";
 import { Badge } from "./ui";
 
 const TONE = {
@@ -17,6 +19,7 @@ const TONE = {
 } as const;
 
 /** A lifecycle state as a colored pill (S45, S49, S58, S65, S66). */
-export function StateBadge({ state }: { state: string }) {
-  return <Badge tone={TONE[state as keyof typeof TONE] ?? "muted"}>{state.charAt(0).toUpperCase() + state.slice(1)}</Badge>;
+export async function StateBadge({ state }: { state: string }) {
+  const t = shell.t(await getLocale());
+  return <Badge tone={TONE[state as keyof typeof TONE] ?? "muted"}>{stateName(t, state)}</Badge>;
 }

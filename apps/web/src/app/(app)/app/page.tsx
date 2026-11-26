@@ -1,17 +1,25 @@
 import { ArrowDownLeft, ArrowUpRight, Flame, ShoppingBag } from "lucide-react";
 import { Avatar, Badge, Card, CardTitle, Empty, Flash, LinkButton, Units } from "@/components/app/ui";
+import { formatNumber } from "@propi/core/i18n";
+import { shell } from "@/i18n/app-shell.messages";
+import { home } from "@/i18n/app-home.messages";
+import { getLocale } from "@/i18n/locale";
 import { formatDate, readableText, unitsWord } from "@/lib/format";
 import { requireViewer } from "@/server/auth";
 import { propi } from "@/server/propi";
-import { ENTRY_LABEL, memberHistory, memberLevel, workspaceView } from "@/server/views";
+import { memberHistory, memberLevel, workspaceView } from "@/server/views";
 
-export const metadata = { title: "Home" };
+export async function generateMetadata() {
+  return { title: home.t(await getLocale())("title") };
+}
 
 // S28 allowance, S31-S33 balances, S77 level, S30 history, S80 a glance at the board.
 export default async function MemberHome({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const viewer = await requireViewer();
   const sp = await searchParams;
   const p = propi();
+  const L = await getLocale();
+  const t = home.t(L);
   const [w, allowance, lvl, history, boards] = await Promise.all([
     workspaceView(viewer.ws),
     p.app.allowance(viewer.ws, viewer.memberId),
@@ -32,26 +40,26 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <Flash ok={sp.ok} error={sp.denied ? "That page needs a different role." : sp.error} />
+      <Flash ok={sp.ok} error={sp.denied ? shell.t(L)("denied") : sp.error} />
       <section className="rise relative mb-6 overflow-hidden rounded-[2rem] border-2 border-ink bg-coral p-6 text-ink shadow-chunky md:p-8">
         <img src="/brand/mascot-cheer.webp" alt="" className="bob pointer-events-none absolute -right-4 -bottom-6 hidden w-44 md:block lg:w-52" />
-        <p className="font-display text-lg font-extrabold">Hi {name}!</p>
-        <p className="mt-1 text-sm font-semibold text-ink">Redeemable balance</p>
+        <p className="font-display text-lg font-extrabold">{t("hi", { name: name ?? "" })}</p>
+        <p className="mt-1 text-sm font-semibold text-ink">{t("redeemable")}</p>
         <p className="font-display text-6xl font-black tracking-tight tabular-nums md:text-7xl" data-testid="redeemable">
-          {balances.redeemable.toLocaleString("en-US")}
+          {formatNumber(L, balances.redeemable)}
           <span className="ml-3 align-middle text-2xl font-extrabold">{unitsWord(balances.redeemable, currency)}</span>
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <LinkButton href="/app/shop" tone="ink">
-            <ShoppingBag className="size-4" /> Spend in the shop
+            <ShoppingBag className="size-4" /> {t("spend")}
           </LinkButton>
           <Badge tone="sunflower">
-            Level {level.level} · {level.title}
+            {t("level", { level: level.level, title: level.title })}
           </Badge>
         </div>
         <div className="mt-4 max-w-xs">
-          <p className="text-sm font-semibold">{level.next ? `${toNext} points to ${level.next.title}` : "Top level reached"}</p>
-          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full border-2 border-ink bg-cream" role="progressbar" aria-valuenow={Math.min(100, progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Level progress">
+          <p className="text-sm font-semibold">{level.next ? t("toNext", { points: toNext, title: level.next.title }) : t("topLevel")}</p>
+          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full border-2 border-ink bg-cream" role="progressbar" aria-valuenow={Math.min(100, progress)} aria-valuemin={0} aria-valuemax={100} aria-label={t("levelProgress")}>
             <div className="h-full rounded-full bg-sunflower" style={{ width: `${Math.max(4, Math.min(100, progress))}%` }} />
           </div>
         </div>
@@ -59,33 +67,33 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
 
       <div className="grid gap-5 md:grid-cols-3">
         <Card className="rise md:col-span-1" style={{ ["--i" as string]: 1 }}>
-          <CardTitle>Today&apos;s allowance</CardTitle>
+          <CardTitle>{t("allowance")}</CardTitle>
           <p className="font-display text-4xl font-black tabular-nums">
             {allowance.remaining}
             <span className="text-xl text-ink-soft"> / {allowance.limit}</span>
           </p>
-          <p className="mt-1 text-sm text-ink-soft">left to give today. Resets at midnight ({timezone}).</p>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-cream-deep" role="progressbar" aria-valuenow={allowance.remaining} aria-valuemin={0} aria-valuemax={allowance.limit} aria-label="Allowance left">
+          <p className="mt-1 text-sm text-ink-soft">{t("allowanceLeft", { timezone })}</p>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-cream-deep" role="progressbar" aria-valuenow={allowance.remaining} aria-valuemin={0} aria-valuemax={allowance.limit} aria-label={t("allowanceAria")}>
             <div className="h-full rounded-full bg-sunflower" style={{ width: `${left}%` }} />
           </div>
         </Card>
         <Card className="rise" style={{ ["--i" as string]: 2 }}>
-          <CardTitle>Received</CardTitle>
+          <CardTitle>{t("received")}</CardTitle>
           <Units n={balances.received} className="text-4xl" />
-          <p className="mt-1 text-sm text-ink-soft">from teammates, all time</p>
+          <p className="mt-1 text-sm text-ink-soft">{t("receivedSub")}</p>
         </Card>
         <Card className="rise" style={{ ["--i" as string]: 3 }}>
-          <CardTitle>Given</CardTitle>
+          <CardTitle>{t("given")}</CardTitle>
           <Units n={balances.given} className="text-4xl" />
-          <p className="mt-1 text-sm text-ink-soft">to teammates, all time</p>
+          <p className="mt-1 text-sm text-ink-soft">{t("givenSub")}</p>
         </Card>
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <Card>
-          <CardTitle>My history</CardTitle>
+          <CardTitle>{t("history")}</CardTitle>
           {history.length === 0 ? (
-            <Empty title="Nothing here yet">Give your first props in Slack with {currency.primaryEmoji}.</Empty>
+            <Empty title={t("historyEmpty")}>{t("historyEmptyBody", { emoji: currency.primaryEmoji })}</Empty>
           ) : (
             <ul className="divide-y divide-line">
               {history.map(({ entry, delta }) => {
@@ -97,15 +105,15 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">
-                        {gave ? `You gave ${w.label(entry.memberId)}` : entry.kind === "gift" ? `From ${w.label(entry.counterpartId)}` : ENTRY_LABEL[entry.kind]}
+                        {gave ? t("youGave", { name: w.label(entry.memberId) }) : entry.kind === "gift" ? t("from", { name: w.label(entry.counterpartId) }) : t(`entry.${entry.kind}`)}
                       </p>
                       <p className="truncate text-xs text-ink-soft">
-                        {formatDate(entry.at, timezone, true)}
-                        {entry.reason ? ` · ${readableText(entry.reason)}` : ""}
+                        {formatDate(L, entry.at, timezone, true)}
+                        {entry.reason ? ` · ${readableText(entry.reason, w.label)}` : ""}
                       </p>
                     </div>
                     <span className={`font-display font-extrabold tabular-nums ${gave ? "text-ink-soft" : delta < 0 ? "text-coral-ink" : "text-ink"}`}>
-                      {gave ? (entry.kind === "gift" ? `${entry.amount} given` : `${entry.amount} back`) : `${delta > 0 ? "+" : ""}${delta}`}
+                      {gave ? (entry.kind === "gift" ? t("amountGiven", { count: entry.amount }) : t("amountBack", { count: entry.amount })) : `${delta > 0 ? "+" : ""}${formatNumber(L, delta)}`}
                     </span>
                   </li>
                 );
@@ -114,13 +122,13 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           )}
         </Card>
         <Card>
-          <CardTitle action={<a href="/app/leaderboards" className="text-sm font-semibold text-coral-ink hover:underline">See all</a>}>
+          <CardTitle action={<a href="/app/leaderboards" className="text-sm font-semibold text-coral-ink hover:underline">{t("seeAll")}</a>}>
             <span className="inline-flex items-center gap-2">
-              <Flame className="size-5 text-coral" /> This month
+              <Flame className="size-5 text-coral" /> {t("thisMonth")}
             </span>
           </CardTitle>
           {!top.ok || top.value.length === 0 ? (
-            <Empty title="The board is wide open" art="/brand/mascot-thumbs-up.webp" />
+            <Empty title={t("boardEmpty")} art="/brand/mascot-thumbs-up.webp" />
           ) : (
             <ol className="space-y-2">
               {top.value.map((r) => (
@@ -133,7 +141,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
               ))}
             </ol>
           )}
-          <p className="mt-3 text-xs text-ink-soft">{board === "received" ? "Most received" : board === "given" ? "Most generous" : "Received + given"}</p>
+          <p className="mt-3 text-xs text-ink-soft">{t(`board.${board}`)}</p>
         </Card>
       </div>
     </>

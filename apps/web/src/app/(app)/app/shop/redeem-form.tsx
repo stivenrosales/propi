@@ -4,7 +4,9 @@
 // With room for only one unit it renders exactly the single-unit form it replaced.
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import { useLocale } from "@/components/app/locale-context";
 import { Button, KeyInput, Select, Units } from "@/components/app/ui";
+import { shop } from "@/i18n/shop.messages";
 import { maxUnits } from "@/server/shop-view";
 
 export interface RedeemVariant {
@@ -31,6 +33,7 @@ export function RedeemForm({
   stock: number | null;
   variants: readonly RedeemVariant[];
 }) {
+  const t = shop.t(useLocale());
   const withVariants = variants.length > 0;
   const firstOpen = variants.find((v) => v.stock === null || v.stock > 0)?.id ?? variants[0]?.id ?? null;
   const [variantId, setVariantId] = useState<string | null>(firstOpen);
@@ -49,7 +52,7 @@ export function RedeemForm({
       <input type="hidden" name="rewardId" value={rewardId} />
       {max > 1 ? <input type="hidden" name="quantity" value={quantity} /> : null}
       {withVariants ? (
-        <Select name="variantId" aria-label="Variant" className="flex-1" value={variantId ?? undefined} onChange={(e) => setVariantId(e.currentTarget.value)}>
+        <Select name="variantId" aria-label={t("variant")} className="flex-1" value={variantId ?? undefined} onChange={(e) => setVariantId(e.currentTarget.value)}>
           {variants.map((v) => (
             <option key={v.id} value={v.id} disabled={v.stock !== null && v.stock <= 0}>
               {v.name}
@@ -60,24 +63,24 @@ export function RedeemForm({
       ) : null}
       {max > 1 ? (
         <div className="flex items-center justify-between gap-3">
-          <div className="inline-flex items-center rounded-full border-2 border-ink bg-white" role="group" aria-label="How many">
-            <button type="button" aria-label="One fewer" disabled={quantity <= 1} onClick={() => setWanted(Math.max(1, quantity - 1))} className="grid size-11 place-items-center rounded-full disabled:opacity-40 md:size-9">
+          <div className="inline-flex items-center rounded-full border-2 border-ink bg-white" role="group" aria-label={t("howMany")}>
+            <button type="button" aria-label={t("fewer")} disabled={quantity <= 1} onClick={() => setWanted(Math.max(1, quantity - 1))} className="grid size-11 place-items-center rounded-full disabled:opacity-40 md:size-9">
               <Minus aria-hidden="true" className="size-4" />
             </button>
             <output aria-live="polite" className="min-w-8 text-center font-display text-lg font-extrabold tabular-nums">
               {quantity}
             </output>
-            <button type="button" aria-label="One more" disabled={quantity >= max} onClick={() => setWanted(Math.min(max, quantity + 1))} className="grid size-11 place-items-center rounded-full disabled:opacity-40 md:size-9">
+            <button type="button" aria-label={t("more")} disabled={quantity >= max} onClick={() => setWanted(Math.min(max, quantity + 1))} className="grid size-11 place-items-center rounded-full disabled:opacity-40 md:size-9">
               <Plus aria-hidden="true" className="size-4" />
             </button>
           </div>
           <span className="text-sm text-ink-soft">
-            Total <Units n={total} className="text-sm text-ink" />
+            {t("total")} <Units n={total} className="text-sm text-ink" />
           </span>
         </div>
       ) : null}
-      <Button className="flex-1" confirm={`Spend ${total}? Tap again`} disabled={soldOut || short} title={short ? "Not enough props yet" : undefined}>
-        {short ? `Need ${cost - redeemable} more` : quantity > 1 ? `Redeem ${quantity}` : "Redeem"}
+      <Button className="flex-1" confirm={t("confirm", { total })} disabled={soldOut || short} title={short ? t("notEnough") : undefined}>
+        {short ? t("need", { count: cost - redeemable }) : quantity > 1 ? t("redeemMany", { count: quantity }) : t("redeem")}
       </Button>
     </form>
   );

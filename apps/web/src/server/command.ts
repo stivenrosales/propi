@@ -1,7 +1,7 @@
 // Shared plumbing for server actions: the command envelope and the post-redirect-get flash.
 import { redirect } from "next/navigation";
 import { uuidv7 } from "@propi/db";
-import type { CommandBase, CommandKey, Instant } from "@propi/core";
+import type { CommandBase, CommandKey, Instant, Locale } from "@propi/core";
 import { errorMessage } from "@/lib/format";
 import type { Viewer } from "./auth";
 
@@ -25,11 +25,11 @@ export const subKey = (base: CommandBase, suffix: string): CommandBase => ({ ...
 
 type Outcome = { readonly ok: true } | { readonly ok: false; readonly error: { readonly code: string } };
 
-/** Post/redirect/get: back to `path` with the outcome in the query string. */
-export function finish(path: string, outcome: Outcome, okText: string): never {
+/** Post/redirect/get: back to `path` with the outcome in the query string, in the reader's language. */
+export function finish(path: string, outcome: Outcome, okText: string, locale: Locale): never {
   const sep = path.includes("?") ? "&" : "?";
   if (outcome.ok) redirect(`${path}${sep}ok=${encodeURIComponent(okText)}`);
-  redirect(`${path}${sep}error=${encodeURIComponent(errorMessage(outcome.error as never))}`);
+  redirect(`${path}${sep}error=${encodeURIComponent(errorMessage(locale, outcome.error as never))}`);
 }
 
 export const fail = (code: string, extra: Record<string, unknown> = {}): Outcome => ({ ok: false, error: { code, ...extra } });

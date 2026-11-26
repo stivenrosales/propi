@@ -1,5 +1,7 @@
 import { rewardCatalog } from "@propi/app";
 import { RewardArt } from "@/components/app/reward-art";
+import { getLocale } from "@/i18n/locale";
+import { shop as msgs } from "@/i18n/shop.messages";
 import { Badge, Card, Empty, Flash, PageHeader, Units } from "@/components/app/ui";
 import { redeemAction } from "@/server/actions/member";
 import { requireViewer } from "@/server/auth";
@@ -7,13 +9,16 @@ import { formKey } from "@/server/command";
 import { propi } from "@/server/propi";
 import { RedeemForm } from "./redeem-form";
 
-export const metadata = { title: "Shop" };
+export async function generateMetadata() {
+  return { title: msgs.t(await getLocale())("title") };
+}
 
 // S44-S48, S50: the catalog of active rewards, redeemable from the web. S2: several units in one step.
 export default async function Shop({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const viewer = await requireViewer();
   const sp = await searchParams;
   const p = propi();
+  const t = msgs.t(await getLocale());
   const [rewards, balances] = await Promise.all([rewardCatalog(p.shop(viewer.ws), viewer.actor), p.app.balances(viewer.ws, viewer.memberId)]);
   const active = rewards.filter((r) => r.status === "active");
   const categories = [...new Set(active.flatMap((r) => r.categories))].sort();
@@ -22,17 +27,17 @@ export default async function Shop({ searchParams }: { searchParams: Promise<Rec
 
   return (
     <>
-      <PageHeader title="Shop" eyebrow="Spend your props">
+      <PageHeader title={t("title")} eyebrow={t("eyebrow")}>
         <div className="rounded-full border-2 border-ink bg-white px-4 py-2 shadow-sticker">
-          <span className="mr-2 text-sm font-semibold text-ink-soft">You have</span>
+          <span className="mr-2 text-sm font-semibold text-ink-soft">{t("youHave")}</span>
           <Units n={balances.redeemable} />
         </div>
       </PageHeader>
       <Flash ok={sp.ok} error={sp.error} />
       {categories.length > 0 ? (
-        <nav aria-label="Categories" className="mb-5 flex flex-wrap gap-2">
+        <nav aria-label={t("categories")} className="mb-5 flex flex-wrap gap-2">
           <a href="/app/shop" className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold ${filter === null ? "border-ink bg-ink text-cream" : "border-line bg-white hover:border-ink"}`}>
-            All
+            {t("all")}
           </a>
           {categories.map((c) => (
             <a key={c} href={`/app/shop?category=${encodeURIComponent(c)}`} className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold ${filter === c ? "border-ink bg-ink text-cream" : "border-line bg-white hover:border-ink"}`}>
@@ -42,8 +47,8 @@ export default async function Shop({ searchParams }: { searchParams: Promise<Rec
         </nav>
       ) : null}
       {shown.length === 0 ? (
-        <Empty title="The shop is empty for now" art="/brand/mascot-gift.webp">
-          An admin can add rewards from the admin area.
+        <Empty title={t("empty")} art="/brand/mascot-gift.webp">
+          {t("emptyBody")}
         </Empty>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -62,7 +67,7 @@ export default async function Shop({ searchParams }: { searchParams: Promise<Rec
                 </div>
                 <p className="mt-1 line-clamp-2 flex-1 px-1 text-sm text-ink-soft">{r.description}</p>
                 <div className="mt-3 flex flex-wrap gap-1.5 px-1">
-                  {stock === null ? <Badge tone="mint">Unlimited</Badge> : soldOut ? <Badge tone="coral">Out of stock</Badge> : <Badge tone="sunflower">{stock} left</Badge>}
+                  {stock === null ? <Badge tone="mint">{t("unlimited")}</Badge> : soldOut ? <Badge tone="coral">{t("soldOut")}</Badge> : <Badge tone="sunflower">{t("left", { count: stock })}</Badge>}
                   {r.categories.map((c) => (
                     <Badge key={c}>{c}</Badge>
                   ))}

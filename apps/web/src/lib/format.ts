@@ -1,23 +1,29 @@
 // Presentation helpers. No business rules: amounts, states and permissions come from core.
+// i18n S1: every text and format here takes the reader's locale (en | es).
+import { formatDate as formatLocaleDate, formatNumber, type Locale } from "@propi/core/i18n";
+import { errors } from "../i18n/errors.messages.ts";
 
 /**
  * The fallback label when a member has no stored display name (S6), derived from the member id:
  * slug-like ids ("ana-torres") become "Ana Torres"; opaque ids (UUIDs) become "Member 3f1c0a".
  */
-export function memberLabel(id: string): string {
+export function memberLabel(id: string, locale: Locale = "en"): string {
   const slug = id.replace(/^m[_-]/, "");
   if (/^[a-z]+([._-][a-z]+)*$/i.test(slug)) return slug.split(/[._-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-  return `Member ${id.replace(/-/g, "").slice(-6)}`;
+  return errors.t(locale)("member.fallback", { suffix: id.replace(/-/g, "").slice(-6) });
 }
 
 /** S6: labels and avatars from stored chat profiles, falling back to memberLabel for the rest. */
-export function memberDirectory(members: readonly { readonly id: string; readonly displayName?: string | null; readonly avatarUrl?: string | null }[]): {
+export function memberDirectory(
+  members: readonly { readonly id: string; readonly displayName?: string | null; readonly avatarUrl?: string | null }[],
+  locale: Locale,
+): {
   label(id: string | null | undefined): string;
   avatar(id: string | null | undefined): string | null;
 } {
   const byId = new Map(members.map((m) => [m.id, m]));
   return {
-    label: (id) => (id ? byId.get(id)?.displayName || memberLabel(id) : "Someone"),
+    label: (id) => (id ? byId.get(id)?.displayName || memberLabel(id, locale) : errors.t(locale)("member.someone")),
     avatar: (id) => (id ? byId.get(id)?.avatarUrl || null : null),
   };
 }
@@ -50,75 +56,74 @@ export function unitsWord(n: number, currency: { readonly singular: string; read
   return n === 1 ? currency.singular : currency.plural;
 }
 
-export function formatDate(ms: number, timeZone: string, withTime = false): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric", year: "numeric", ...(withTime ? { hour: "numeric", minute: "2-digit" } : {}) }).format(ms);
+export function formatDate(locale: Locale, ms: number, timeZone: string, withTime = false): string {
+  return formatLocaleDate(locale, ms, { timeZone, month: "short", day: "numeric", year: "numeric", ...(withTime ? { hour: "numeric", minute: "2-digit" } : {}) });
 }
 
-export function formatMoney(minor: number, currency: string): string {
+export function formatMoney(locale: Locale, minor: number, currency: string): string {
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(minor / 100);
+    return formatNumber(locale, minor / 100, { style: "currency", currency });
   } catch {
-    return `${(minor / 100).toFixed(2)} ${currency}`;
+    return `${formatNumber(locale, minor / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
   }
 }
 
-/** Friendly text for a domain or API error code. Unknown codes fall back to the code itself. */
-export function errorMessage(error: { readonly code: string; readonly [k: string]: unknown }): string {
+const ROLES = new Set(["admin", "approver", "member"]);
+
+/** The label of a form field an error names: known fields in the reader's language, others as given. */
+function fieldLabel(t: ReturnType<typeof errors.t>, field: unknown): string {
+  const f = String(field ?? "");
+  const hashtag = /^hashtag of (.+)$/.exec(f);
+  if (hashtag) return t("field.hashtagOf", { name: hashtag[1]! });
+  const emoji = /^emoji of (.+)$/.exec(f);
+  if (emoji) return t("field.emojiOf", { name: emoji[1]! });
+  const key = `field.${f}`;
+  return key in errors.en ? t(key as "field.title") : f;
+}
+
+/** Friendly text for a domain or API error code, in the reader's language. Unknown codes fall back to the code itself. */
+export function errorMessage(locale: Locale, error: { readonly code: string; readonly [k: string]: unknown }): string {
   const e = error as Record<string, unknown>;
+  const t = errors.t(locale);
+  const num = (v: unknown): string | number => (typeof v === "number" ? v : String(v));
   switch (error.code) {
     case "forbidden":
-      return `You need the ${String(e.need ?? "right")} role for that.`;
+      return ROLES.has(String(e.need)) ? t("forbidden", { role: t(`role.${String(e.need)}` as "role.admin") }) : t("forbidden.any");
     case "insufficient_redeemable":
-      return `Not enough redeemable balance: it costs ${String(e.cost)}, you have ${String(e.redeemable)}.`;
+      return t("insufficient_redeemable", { cost: num(e.cost), redeemable: num(e.redeemable) });
     case "out_of_stock":
-      return typeof e.available === "number" ? `Only ${e.available} left. Pick fewer units.` : "That reward is out of stock right now.";
+      return typeof e.available === "number" ? t("out_of_stock.some", { available: e.available }) : t("out_of_stock");
     case "invalid_quantity":
-      return "Pick how many to redeem: a whole number, 1 or more.";
     case "plan_limit":
-      return "Your workspace is over the Free plan limit. Ask an admin to upgrade to Pro.";
     case "billing_not_configured":
-      return "Billing is not configured on this Propi server.";
     case "billing_unavailable":
-      return "Billing is unavailable right now. Try again in a minute.";
     case "already_subscribed":
-      return "This workspace already has a Pro subscription. Use Manage billing to change it.";
     case "budget_exceeded":
-      return "This month's redemption budget would be exceeded.";
     case "reason_required":
-      return "Please add a reason.";
     case "invalid_amount":
-      return "The amount must be a whole number of at least 1.";
     case "idempotency_key_reused":
-      return "That form was already submitted with different values. Reload and try again.";
+    case "quest_not_open":
+    case "proof_required":
+    case "cooldown":
+    case "cap_reached":
+    case "collab_closed":
+    case "module_disabled":
+    case "reward_not_active":
+    case "unknown_member":
+      return t(error.code as "plan_limit");
     case "illegal_transition":
     case "invalid_transition":
-      return "That item can no longer move to that state.";
+      return t("invalid_transition");
     case "invalid_reward":
-      return `Please check the reward field "${String(e.field ?? "")}".`;
-    case "quest_not_open":
-      return "That quest is not open for submissions.";
-    case "proof_required":
-      return "This quest needs proof.";
-    case "cooldown":
-      return "You are still in this quest's cooldown.";
-    case "cap_reached":
-      return "This quest's submission cap is reached.";
-    case "collab_closed":
-      return "That collaborative reward is closed.";
+      return t("invalid_reward", { field: fieldLabel(t, e.field) });
     case "avatar_locked":
-      return `That avatar unlocks at level ${String(e.minLevel)}.`;
-    case "module_disabled":
-      return "That module is turned off for this workspace.";
-    case "reward_not_active":
-      return "Only active rewards can be redeemed.";
-    case "unknown_member":
-      return "That member does not exist in this workspace.";
+      return t("avatar_locked", { level: num(e.minLevel) });
     case "invalid_field":
-      return `Please check the field "${String(e.field ?? "")}".`;
+      return t("invalid_field", { field: fieldLabel(t, e.field) });
     case "invalid_currency":
-      return `The currency ${String(e.field ?? "")} is not valid.`;
+      return t("invalid_currency", { currency: String(e.field ?? "") });
     case "not_found":
-      return `Not found: ${String(e.what ?? "item")}.`;
+      return t("not_found", { what: e.what === "endpoint" ? t("not_found.endpoint") : e.what === undefined ? t("not_found.item") : String(e.what) });
     default:
       return error.code.replace(/_/g, " ");
   }

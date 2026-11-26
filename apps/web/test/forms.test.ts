@@ -73,8 +73,10 @@ describe("presentation helpers", () => {
   });
 
   test("error messages for domain codes", () => {
-    expect(errorMessage({ code: "insufficient_redeemable", cost: 12, redeemable: 5 })).toBe("Not enough redeemable balance: it costs 12, you have 5.");
-    expect(errorMessage({ code: "something_new" })).toBe("something new");
+    expect(errorMessage("en", { code: "insufficient_redeemable", cost: 12, redeemable: 5 })).toBe("Not enough redeemable balance: it costs 12, you have 5.");
+    expect(errorMessage("es", { code: "insufficient_redeemable", cost: 12, redeemable: 5 })).toBe("No te alcanza el saldo canjeable: cuesta 12 y tienes 5.");
+    expect(errorMessage("en", { code: "something_new" })).toBe("something new");
+    expect(errorMessage("es", { code: "something_new" })).toBe("something new");
   });
 
   test("S80 timeframes from the query string", () => {

@@ -1,12 +1,17 @@
 import { Crown, Trophy } from "lucide-react";
 import type { ValueId } from "@propi/core";
 import { Avatar, Button, Card, Empty, Field, Input, PageHeader, Select, Units } from "@/components/app/ui";
+import { shell } from "@/i18n/app-shell.messages";
+import { boardsPage } from "@/i18n/leaderboards.messages";
+import { getLocale } from "@/i18n/locale";
 import { parseBoard, parseTimeframe, TIMEFRAMES } from "@/lib/timeframe";
 import { requireViewer } from "@/server/auth";
 import { propi } from "@/server/propi";
 import { workspaceView } from "@/server/views";
 
-export const metadata = { title: "Leaderboards" };
+export async function generateMetadata() {
+  return { title: boardsPage.t(await getLocale())("title") };
+}
 
 const CROWN = ["text-sunflower", "text-ink-soft", "text-coral"];
 
@@ -16,6 +21,9 @@ export default async function Leaderboards({ searchParams }: { searchParams: Pro
   const viewer = await requireViewer();
   const sp = await searchParams;
   const p = propi();
+  const L = await getLocale();
+  const t = boardsPage.t(L);
+  const st = shell.t(L);
   const [visible, w, values, gifts] = await Promise.all([
     p.boards.visibleBoards(viewer.ws, viewer.actor),
     workspaceView(viewer.ws),
@@ -31,67 +39,67 @@ export default async function Leaderboards({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Leaderboards" eyebrow="Who's lifting the team" />
+      <PageHeader title={t("title")} eyebrow={t("eyebrow")} />
       <Card className="mb-5">
         <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
-          <Field label="Board">
+          <Field label={t("board")}>
             <Select name="board" defaultValue={board}>
               {visible.map((b) => (
-                <option key={b} value={b}>{b[0]!.toUpperCase() + b.slice(1)}</option>
+                <option key={b} value={b}>{st(`board.${b}`)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Timeframe">
+          <Field label={st("timeframe.label")}>
             <Select name="timeframe" defaultValue={timeframe.kind}>
-              {TIMEFRAMES.map((t) => (
-                <option key={t} value={t}>{t === "all" ? "All time" : t === "custom" ? "Custom range" : t[0]!.toUpperCase() + t.slice(1)}</option>
+              {TIMEFRAMES.map((tf) => (
+                <option key={tf} value={tf}>{st(`timeframe.${tf}`)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Channel">
+          <Field label={t("channel")}>
             <Select name="channel" defaultValue={channelId ?? ""}>
-              <option value="">All channels</option>
+              <option value="">{t("allChannels")}</option>
               {channels.map((c) => (
                 <option key={c} value={c}>#{c}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Value">
+          <Field label={t("value")}>
             <Select name="value" defaultValue={valueId ?? ""}>
-              <option value="">All values</option>
+              <option value="">{t("allValues")}</option>
               {values.map((v) => (
                 <option key={v.id} value={v.id}>{v.name}</option>
               ))}
             </Select>
           </Field>
-          <Field label="From" hint="Custom range only">
+          <Field label={t("from")} hint={t("customOnly")}>
             <Input type="date" name="from" defaultValue={timeframe.kind === "custom" ? timeframe.from : ""} />
           </Field>
-          <Field label="To" hint="Custom range only">
+          <Field label={t("to")} hint={t("customOnly")}>
             <Input type="date" name="to" defaultValue={timeframe.kind === "custom" ? timeframe.to : ""} />
           </Field>
-          <Button tone="ink" className="self-end sm:col-span-2 sm:justify-self-start lg:mb-[1.375rem]">Apply</Button>
+          <Button tone="ink" className="self-end sm:col-span-2 sm:justify-self-start lg:mb-[1.375rem]">{st("apply")}</Button>
         </form>
       </Card>
       <Card>
         {!rows.ok ? (
-          <Empty title="This board is hidden">Your workspace shows members only the given board.</Empty>
+          <Empty title={t("hidden")}>{t("hiddenBody")}</Empty>
         ) : rows.value.length === 0 ? (
-          <Empty title="Nobody on this board yet" art="/brand/mascot-thumbs-up.webp" />
+          <Empty title={t("empty")} art="/brand/mascot-thumbs-up.webp" />
         ) : (
           <ol className="space-y-1.5">
             {rows.value.map((r) => (
               <li key={r.memberId} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 md:gap-4 md:px-4 ${r.rank === 1 ? "bg-sunflower-soft" : r.memberId === viewer.memberId ? "bg-coral-soft" : "hover:bg-cream/70"}`}>
                 <span className="grid w-8 place-items-center font-display text-lg font-black text-ink-soft">
-                  {r.rank <= 3 ? <Crown className={`size-6 ${CROWN[r.rank - 1]}`} fill="currentColor" stroke="var(--ink)" strokeWidth={1.5} aria-label={`Rank ${r.rank}`} /> : r.rank}
+                  {r.rank <= 3 ? <Crown className={`size-6 ${CROWN[r.rank - 1]}`} fill="currentColor" stroke="var(--ink)" strokeWidth={1.5} aria-label={t("rank", { rank: r.rank })} /> : r.rank}
                 </span>
                 <Avatar id={r.memberId} label={w.label(r.memberId)} src={w.avatar(r.memberId)} />
                 <span className="flex min-w-0 flex-1 items-center gap-2 font-semibold">
                   <span className="truncate">{w.label(r.memberId)}</span>
-                  {r.memberId === viewer.memberId ? <span className="shrink-0 text-xs text-coral-ink">you</span> : null}
+                  {r.memberId === viewer.memberId ? <span className="shrink-0 text-xs text-coral-ink">{t("you")}</span> : null}
                 </span>
                 <span className="hidden text-xs text-ink-soft sm:inline">
-                  {r.received} in · {r.given} out
+                  {t("inOut", { received: r.received, given: r.given })}
                 </span>
                 <span className="inline-flex min-w-16 justify-center rounded-full bg-white px-3 py-1 shadow-[inset_0_0_0_1px_var(--line)]">
                   <Units n={r.score} />
@@ -101,7 +109,7 @@ export default async function Leaderboards({ searchParams }: { searchParams: Pro
           </ol>
         )}
         <p className="mt-4 flex items-center gap-2 text-xs text-ink-soft">
-          <Trophy className="size-3.5" /> Deactivated and excluded members are hidden.
+          <Trophy className="size-3.5" /> {t("footnote")}
         </p>
       </Card>
     </>

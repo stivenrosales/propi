@@ -1,0 +1,43 @@
+// i18n S1: the admin Audit log (every adjustment with actor, time and reason).
+import { defineMessages } from "@propi/core/i18n";
+
+export const auditPage = defineMessages(
+  {
+    title: "Audit log",
+    eyebrow: "Admin",
+    empty: "No adjustments yet",
+    when: "When",
+    action: "Action",
+    actor: "Actor",
+    reason: "Reason",
+    result: "Result",
+    applied: "applied",
+    refused: "refused",
+    token: "API token {id}",
+    system: "System ({job})",
+    bot: "Bot",
+    "action.bonus": "bonus",
+    "action.deduction": "deduction",
+    "action.reversal": "reversal",
+    "action.reset": "reset",
+  },
+  {
+    title: "Registro de auditoría",
+    eyebrow: "Admin",
+    empty: "Todavía no hay ajustes",
+    when: "Cuándo",
+    action: "Acción",
+    actor: "Quién",
+    reason: "Motivo",
+    result: "Resultado",
+    applied: "aplicado",
+    refused: "rechazado",
+    token: "Token de API {id}",
+    system: "Sistema ({job})",
+    bot: "Bot",
+    "action.bonus": "bono",
+    "action.deduction": "descuento",
+    "action.reversal": "reversión",
+    "action.reset": "reinicio",
+  },
+);

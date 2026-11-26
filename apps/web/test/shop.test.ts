@@ -25,10 +25,17 @@ describe("S2 web shop quantity", () => {
   });
 
   test("S2: refusals for a batch read in plain words", () => {
-    expect(errorMessage({ code: "out_of_stock", available: 2 })).toBe("Only 2 left. Pick fewer units.");
-    expect(errorMessage({ code: "out_of_stock" })).toBe("That reward is out of stock right now.");
-    expect(errorMessage({ code: "invalid_quantity" })).toBe("Pick how many to redeem: a whole number, 1 or more.");
-    expect(errorMessage({ code: "insufficient_redeemable", cost: 36, redeemable: 30 })).toBe("Not enough redeemable balance: it costs 36, you have 30.");
+    expect(errorMessage("en", { code: "out_of_stock", available: 2 })).toBe("Only 2 left. Pick fewer units.");
+    expect(errorMessage("en", { code: "out_of_stock" })).toBe("That reward is out of stock right now.");
+    expect(errorMessage("en", { code: "invalid_quantity" })).toBe("Pick how many to redeem: a whole number, 1 or more.");
+    expect(errorMessage("en", { code: "insufficient_redeemable", cost: 36, redeemable: 30 })).toBe("Not enough redeemable balance: it costs 36, you have 30.");
+  });
+
+  test("i18n S1: the same refusals in Spanish", () => {
+    expect(errorMessage("es", { code: "out_of_stock", available: 2 })).toBe("Solo quedan 2. Elige menos unidades.");
+    expect(errorMessage("es", { code: "out_of_stock" })).toBe("Esa recompensa está agotada por ahora.");
+    expect(errorMessage("es", { code: "invalid_quantity" })).toBe("Elige cuántas canjear: un número entero, de 1 en adelante.");
+    expect(errorMessage("es", { code: "insufficient_redeemable", cost: 36, redeemable: 30 })).toBe("No te alcanza el saldo canjeable: cuesta 36 y tienes 30.");
   });
 });
 

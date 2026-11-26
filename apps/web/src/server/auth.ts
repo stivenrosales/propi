@@ -44,12 +44,12 @@ export async function actionViewer(need: Need = "member"): Promise<Viewer> {
 
 /** What the app frame shows about the viewer. */
 export async function shellViewer(viewer: Viewer): Promise<{ memberId: string; role: Role; label: string; picture: string | null }> {
-  const { memberLabel } = await import("@/lib/format");
+  const [{ memberLabel }, { getLocale }] = await Promise.all([import("@/lib/format"), import("@/i18n/locale")]);
   const record = await propi().ports.directory.member(viewer.ws, viewer.memberId);
   return {
     memberId: viewer.memberId,
     role: viewer.role,
-    label: record?.displayName || viewer.session.name || memberLabel(viewer.memberId),
+    label: record?.displayName || viewer.session.name || memberLabel(viewer.memberId, await getLocale()),
     picture: record?.avatarUrl || viewer.session.picture,
   };
 }

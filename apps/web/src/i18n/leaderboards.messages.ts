@@ -1,0 +1,43 @@
+// i18n S1: the leaderboards (boards, timeframes, channel and value filters).
+import { defineMessages } from "@propi/core/i18n";
+
+export const boardsPage = defineMessages(
+  {
+    title: "Leaderboards",
+    eyebrow: "Who's lifting the team",
+    board: "Board",
+    channel: "Channel",
+    allChannels: "All channels",
+    value: "Value",
+    allValues: "All values",
+    from: "From",
+    to: "To",
+    customOnly: "Custom range only",
+    hidden: "This board is hidden",
+    hiddenBody: "Your workspace shows members only the given board.",
+    empty: "Nobody on this board yet",
+    rank: "Rank {rank}",
+    you: "you",
+    inOut: "{received} in · {given} out",
+    footnote: "Deactivated and excluded members are hidden.",
+  },
+  {
+    title: "Rankings",
+    eyebrow: "Quién está impulsando al equipo",
+    board: "Tabla",
+    channel: "Canal",
+    allChannels: "Todos los canales",
+    value: "Valor",
+    allValues: "Todos los valores",
+    from: "Desde",
+    to: "Hasta",
+    customOnly: "Solo para rango personalizado",
+    hidden: "Esta tabla está oculta",
+    hiddenBody: "En tu espacio de trabajo, los miembros solo ven la tabla de enviados.",
+    empty: "Todavía no hay nadie en esta tabla",
+    rank: "Puesto {rank}",
+    you: "tú",
+    inOut: "{received} recibidos · {given} enviados",
+    footnote: "No mostramos a miembros desactivados ni excluidos.",
+  },
+);

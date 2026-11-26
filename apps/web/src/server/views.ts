@@ -1,7 +1,8 @@
 // Read helpers shared by pages. Reads only: queries and folds come from @propi/app and @propi/core.
-import { localDate, signedAmount, type Instant, type LedgerEntry, type MemberId, type MemberRecord, type WorkspaceId, type WorkspaceSettings } from "@propi/core";
+import { localDate, signedAmount, type Instant, type Locale, type LedgerEntry, type MemberId, type MemberRecord, type WorkspaceId, type WorkspaceSettings } from "@propi/core";
 import { collabProgress } from "@propi/app";
 import { DEFAULT_LEVEL_CONFIG, levelOf, type LevelConfig } from "@propi/core/levels";
+import { getLocale } from "@/i18n/locale";
 import { memberDirectory } from "@/lib/format";
 import { propi } from "./propi";
 
@@ -14,10 +15,11 @@ export interface WorkspaceView {
   avatar(id: string | null | undefined): string | null;
 }
 
-export async function workspaceView(ws: WorkspaceId): Promise<WorkspaceView> {
+/** `locale` names the fallback labels ("Member 3f1c0a"); by default the reader's (getLocale). */
+export async function workspaceView(ws: WorkspaceId, locale?: Locale): Promise<WorkspaceView> {
   const p = propi();
-  const [settings, members] = await Promise.all([p.ports.directory.settings(ws), p.ports.directory.members(ws)]);
-  return { settings, members, ...memberDirectory(members) };
+  const [settings, members, reader] = await Promise.all([p.ports.directory.settings(ws), p.ports.directory.members(ws), locale ?? getLocale()]);
+  return { settings, members, ...memberDirectory(members, reader) };
 }
 
 export async function levelsConfig(ws: WorkspaceId): Promise<LevelConfig> {
@@ -41,17 +43,6 @@ export async function memberHistory(ws: WorkspaceId, member: MemberId, limit = 3
   }
   return mine;
 }
-
-export const ENTRY_LABEL: Record<LedgerEntry["kind"], string> = {
-  gift: "Gift",
-  gift_reversal: "Gift reversed",
-  bonus: "Bonus",
-  rule_award: "Award",
-  quest_reward: "Quest reward",
-  spend: "Spent",
-  refund: "Refund",
-  deduction: "Deduction",
-};
 
 /**
  * S56: every collaborative reward with its progress. The shop reader has no list of collabs yet, so

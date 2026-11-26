@@ -2,7 +2,10 @@ import { Lock } from "lucide-react";
 import { NOTIFICATION_TYPES, wants } from "@propi/core/notify";
 import { unlockedAvatars } from "@propi/core/levels";
 import { Avatar, Badge, Button, Card, CardTitle, Field, Flash, Input, KeyInput, PageHeader, Select } from "@/components/app/ui";
+import { formatDate } from "@propi/core/i18n";
+import { shell } from "@/i18n/app-shell.messages";
 import { getLocale } from "@/i18n/locale";
+import { profilePage } from "@/i18n/profile.messages";
 import { LANGUAGE_NAMES, language } from "@/i18n/language.messages";
 import { setMemberLanguageAction } from "@/server/actions/language";
 import { chooseAvatarAction, pairingOptInAction, setMilestonesAction, setPreferenceAction } from "@/server/actions/member";
@@ -11,18 +14,11 @@ import { formKey } from "@/server/command";
 import { propi } from "@/server/propi";
 import { memberLevel, workspaceView } from "@/server/views";
 
-export const metadata = { title: "Profile" };
+export async function generateMetadata() {
+  return { title: profilePage.t(await getLocale())("title") };
+}
 
-const PREF_LABEL: Record<string, string> = {
-  gift_received: "When someone gives me props",
-  gift_confirmation: "Confirmation after I give",
-  gift_rejected: "When a gift could not go through",
-  weekly_report: "Weekly report",
-  nudge: "Friday nudge to give",
-  isolation_alert: "Isolation alerts (admins)",
-  adjustment: "Admin adjustments to my balance",
-};
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const PREFS = new Set(["gift_received", "gift_confirmation", "gift_rejected", "weekly_report", "nudge", "isolation_alert", "adjustment"]);
 
 // S77-S79 level and avatar, S92-S93 milestones and visibility, S95 pairing, S85 notifications.
 export default async function Profile({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -41,6 +37,10 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
     p.ports.directory.member(viewer.ws, viewer.memberId),
   ]);
   const lt = language.t(locale);
+  const t = profilePage.t(locale);
+  const prefLabel = (type: string) => (PREFS.has(type) ? t(`pref.${type}` as "pref.nudge") : type);
+  // Month names in the reader's language (Intl), January = 1.
+  const months = Array.from({ length: 12 }, (_, i) => formatDate(locale, Date.UTC(2000, i, 15), { month: "short", timeZone: "UTC" }));
   const { level, config } = lvl;
   const unlocked = new Set(unlockedAvatars(level.level, config.avatars).map((a) => a.id));
   const mine = prefs.get(viewer.memberId);
@@ -51,7 +51,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
 
   return (
     <>
-      <PageHeader title="Profile" eyebrow="You" />
+      <PageHeader title={t("title")} eyebrow={t("eyebrow")} />
       <Flash ok={sp.ok} error={sp.error} />
       <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
         <Card className="bg-sunflower-soft">
@@ -59,14 +59,15 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
             <Avatar id={viewer.memberId} label={label} src={chosen?.image ?? w.avatar(viewer.memberId) ?? viewer.session.picture} size="lg" />
             <div>
               <h2 className="font-display text-2xl font-black">{label}</h2>
-              <p className="text-sm text-ink-soft capitalize">{viewer.role}</p>
+              <p className="text-sm text-ink-soft">{shell.t(locale)(`role.${viewer.role}`)}</p>
             </div>
           </div>
           <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 shadow-sticker">
-            <p className="text-sm font-semibold text-ink-soft">Level {level.level}</p>
+            <p className="text-sm font-semibold text-ink-soft">{t("level", { level: level.level })}</p>
             <p className="font-display text-3xl font-black">{level.title}</p>
             <p className="mt-1 text-sm text-ink-soft">
-              {level.points} points (received + given){level.next ? ` · ${level.next.min - level.points} to ${level.next.title}` : ""}
+              {t("points", { points: level.points })}
+              {level.next ? t("toNext", { points: level.next.min - level.points, title: level.next.title }) : ""}
             </p>
           </div>
           <ol className="mt-5 space-y-1.5">
@@ -84,7 +85,7 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
         <div className="grid gap-5">
           {config.avatars.length > 0 ? (
             <Card>
-              <CardTitle>Avatar</CardTitle>
+              <CardTitle>{t("avatar")}</CardTitle>
               <div className="flex flex-wrap gap-3">
                 {config.avatars.map((a) => (
                   <form key={a.id} action={chooseAvatarAction}>
@@ -106,41 +107,41 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           ) : null}
 
           <Card>
-            <CardTitle>Milestones</CardTitle>
+            <CardTitle>{t("milestones")}</CardTitle>
             <form action={setMilestonesAction} className="grid gap-3 sm:grid-cols-2">
               <KeyInput value={formKey()} />
-              <Field label="Birthday">
+              <Field label={t("birthday")}>
                 <div className="flex gap-2">
-                  <Select name="birthMonth" defaultValue={milestones?.birthday?.month ?? ""} aria-label="Birth month">
-                    <option value="">Month</option>
-                    {MONTHS.map((m, i) => (
+                  <Select name="birthMonth" defaultValue={milestones?.birthday?.month ?? ""} aria-label={t("birthMonth")}>
+                    <option value="">{t("month")}</option>
+                    {months.map((m, i) => (
                       <option key={m} value={i + 1}>{m}</option>
                     ))}
                   </Select>
-                  <Input name="birthDay" type="number" min={1} max={31} defaultValue={milestones?.birthday?.day ?? ""} placeholder="Day" aria-label="Birth day" />
+                  <Input name="birthDay" type="number" min={1} max={31} defaultValue={milestones?.birthday?.day ?? ""} placeholder={t("day")} aria-label={t("birthDay")} />
                 </div>
               </Field>
-              <Field label="Start date">
+              <Field label={t("startDate")}>
                 <Input name="startDate" type="date" defaultValue={milestones?.startDate ?? ""} />
               </Field>
-              <Field label="How should we celebrate?" className="sm:col-span-2">
+              <Field label={t("celebrate")} className="sm:col-span-2">
                 <Select name="visibility" defaultValue={milestones?.visibility ?? "public"}>
-                  <option value="public">Post in the team channel</option>
-                  <option value="private">Just a private message</option>
-                  <option value="none">Don&apos;t celebrate</option>
+                  <option value="public">{t("celebrate.public")}</option>
+                  <option value="private">{t("celebrate.private")}</option>
+                  <option value="none">{t("celebrate.none")}</option>
                 </Select>
               </Field>
-              <Button className="justify-self-start">Save milestones</Button>
+              <Button className="justify-self-start">{t("saveMilestones")}</Button>
             </form>
           </Card>
 
           <Card>
-            <CardTitle action={<Badge tone={paired ? "mint" : "muted"}>{paired ? "Opted in" : "Opted out"}</Badge>}>Pairing chats</CardTitle>
-            <p className="text-sm text-ink-soft">Get paired with a teammate you rarely exchange props with, for a short chat.</p>
+            <CardTitle action={<Badge tone={paired ? "mint" : "muted"}>{paired ? t("optedIn") : t("optedOut")}</Badge>}>{t("pairing")}</CardTitle>
+            <p className="text-sm text-ink-soft">{t("pairingBody")}</p>
             <form action={pairingOptInAction} className="mt-3">
               <KeyInput value={formKey()} />
               <input type="hidden" name="optedIn" value={paired ? "false" : "true"} />
-              <Button tone={paired ? "cream" : "mint"} size="sm">{paired ? "Opt out" : "Opt in"}</Button>
+              <Button tone={paired ? "cream" : "mint"} size="sm">{paired ? t("optOut") : t("optIn")}</Button>
             </form>
           </Card>
 
@@ -159,17 +160,17 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
           </Card>
 
           <Card>
-            <CardTitle>Notifications</CardTitle>
+            <CardTitle>{t("notifications")}</CardTitle>
             <ul className="divide-y divide-line">
-              {NOTIFICATION_TYPES.filter((t) => t !== "isolation_alert" || viewer.role === "admin").map((t) => {
-                const on = wants(mine, t);
+              {NOTIFICATION_TYPES.filter((n) => n !== "isolation_alert" || viewer.role === "admin").map((n) => {
+                const on = wants(mine, n);
                 return (
-                  <li key={t} className="flex items-center justify-between gap-3 py-2.5">
-                    <span className="text-sm font-medium">{PREF_LABEL[t] ?? t}</span>
+                  <li key={n} className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="text-sm font-medium">{prefLabel(n)}</span>
                     <form action={setPreferenceAction}>
-                      <input type="hidden" name="type" value={t} />
+                      <input type="hidden" name="type" value={n} />
                       <input type="hidden" name="on" value={on ? "false" : "true"} />
-                      <button role="switch" aria-checked={on} aria-label={PREF_LABEL[t] ?? t} className="grid min-h-11 min-w-14 place-items-center">
+                      <button role="switch" aria-checked={on} aria-label={prefLabel(n)} className="grid min-h-11 min-w-14 place-items-center">
                         <span className={`relative block h-7 w-12 rounded-full border-2 border-ink transition-colors ${on ? "bg-mint" : "bg-cream-deep"}`}>
                           <span className={`absolute top-0.5 left-0.5 size-5 rounded-full border-2 border-ink bg-white transition-transform duration-200 ease-[var(--ease-out-expo)] motion-reduce:transition-none ${on ? "translate-x-5" : ""}`} />
                         </span>

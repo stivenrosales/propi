@@ -53,10 +53,10 @@ describe("members table (S1)", () => {
   });
 
   test("the current admin's row keeps a locked Active checkbox so the columns line up", () => {
-    expect(members).toMatch(/<Checkbox label="Active" checked disabled readOnly/);
+    expect(members).toMatch(/<Checkbox label=\{t\("active"\)\} checked disabled readOnly/);
   });
 
   test("status labels do not wrap", () => {
-    expect(members).toMatch(/label="Hide from boards"[^>]*className="whitespace-nowrap"/);
+    expect(members).toMatch(/label=\{t\("hide"\)\}[^>]*className="whitespace-nowrap"/);
   });
 });
