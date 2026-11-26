@@ -12,6 +12,7 @@ import {
   homeView,
   parseSlash,
   shopMessage,
+  stateText,
   stickerCommand,
   translateEvent,
   type RenderContext,
@@ -20,7 +21,10 @@ import {
   type SlackMessageBody,
   type SlackSlashCommand,
 } from "@propi/slack";
+import type { Locale } from "@propi/core/i18n";
 import type { SlackGateway } from "./gateway.ts";
+import { replies } from "./i18n/replies.messages.ts";
+import { createLocales } from "./locale.ts";
 import type { ServerLookup } from "./lookup.ts";
 import type { Runtime } from "./runtime.ts";
 import { profileOf, slackLocaleOf, type SlackUserObject } from "./slack-api.ts";
@@ -39,17 +43,28 @@ export interface InboundDeps {
 /** Results that mean "nothing to do" for a chat event: no reply, no warning (S9, S23). */
 const SILENT = new Set(["not_a_gift", "gift_closed", "gift_not_found"]);
 
-export async function renderContext(d: Pick<InboundDeps, "rt" | "appUrl">, ws: WorkspaceId): Promise<RenderContext> {
+/**
+ * What Block Kit rendering needs for one workspace, in one language. i18n S4d: pass the recipient
+ * member's locale for DMs, App Home and ephemeral replies, the workspace default for channel posts.
+ */
+export async function renderContext(d: Pick<InboundDeps, "rt" | "appUrl">, ws: WorkspaceId, locale: Locale): Promise<RenderContext> {
   const [settings, identities] = await Promise.all([d.rt.ports.directory.settings(ws), d.rt.identityStore.list(ws)]);
   const slackUser = new Map(identities.filter((i) => i.platform === "slack").map((i) => [i.memberId, i.userId]));
+  const teammate = replies.t(locale)("teammate");
   return {
     currency: settings.currency,
     who: (m: MemberId) => {
       const u = slackUser.get(m);
-      return u === undefined ? "a teammate" : `<@${u}>`;
+      return u === undefined ? teammate : `<@${u}>`;
     },
     appUrl: d.appUrl,
+    locale,
   };
+}
+
+/** i18n S4d: the render context for something only `member` reads (DM, App Home, ephemeral reply). */
+export async function memberContext(d: Pick<InboundDeps, "rt" | "appUrl">, ws: WorkspaceId, member: MemberId): Promise<RenderContext> {
+  return renderContext(d, ws, await createLocales(d.rt.ports.directory).member(ws, member));
 }
 
 export interface EventOutcome {
@@ -103,7 +118,7 @@ export async function uninstall(d: Pick<InboundDeps, "rt" | "lookup" | "slack" |
 
 /** S28, S48, S80: the App Home tab with balance, remaining allowance, leaderboard and the shop. */
 export async function homeFor(d: InboundDeps, ws: WorkspaceId, actor: Extract<Actor, { kind: "member" }>) {
-  const ctx = await renderContext(d, ws);
+  const ctx = await memberContext(d, ws, actor.memberId);
   const shop = asShop(d.rt.ports.reader.workspace(ws));
   const [balances, allowance, month, allTime, rewards, level] = await Promise.all([
     d.rt.app.balances(ws, actor.memberId),
@@ -133,10 +148,11 @@ export async function publishHome(d: InboundDeps, team: string, user: string): P
 /** `/propi …`: the reply is ephemeral, returned to Bolt's ack (within 3 s). */
 export async function handleSlash(d: InboundDeps, cmd: SlackSlashCommand): Promise<SlackMessageBody> {
   const ws = await d.lookup.workspace(cmd.team_id);
-  if (ws === null) return { text: "Propi is not installed in this workspace.", blocks: [] };
-  const ctx = await renderContext(d, ws);
+  // No workspace means no language settings to read: English, the default.
+  if (ws === null) return { text: replies.t("en")("notInstalled"), blocks: [] };
   const actor = await d.lookup.actor(ws, cmd.team_id, cmd.user_id);
-  if (actor?.kind !== "member") return { text: "Only workspace members can use Propi.", blocks: [] };
+  if (actor?.kind !== "member") return { text: replies.t(await createLocales(d.rt.ports.directory).workspace(ws))("notMember"), blocks: [] };
+  const ctx = await memberContext(d, ws, actor.memberId);
   const intent = parseSlash(cmd.text);
   switch (intent.kind) {
     case "help":
@@ -150,22 +166,24 @@ export async function handleSlash(d: InboundDeps, cmd: SlackSlashCommand): Promi
     case "sticker": {
       const command = await stickerCommand(d.lookup, ws, actor, cmd, intent, d.rt.ports.clock.now());
       const r = await d.rt.app.execute(command);
-      const text = r.ok ? `Sticker sent: ${r.value.receivers.length} ${r.value.receivers.length === 1 ? "person" : "people"} got ${r.value.perReceiver} each.` : errorText(r.error, ctx);
+      const text = r.ok ? replies.t(ctx.locale)("stickerSent", { count: r.value.receivers.length, each: r.value.perReceiver }) : errorText(r.error, ctx);
       return { text, blocks: [] };
     }
   }
 }
 
-const okText = (cmd: AppCommand, r: Result<unknown>): string => {
+const okText = (cmd: AppCommand, r: Result<unknown>, locale: Locale): string => {
+  const t = replies.t(locale);
+  const state = r.ok ? stateText((r.value as { state: string }).state, locale) : null;
   switch (cmd.type) {
     case "Redeem":
-      return `Redeemed. ${r.ok ? `It's ${(r.value as { state: string }).state}.` : ""} You'll get a message as it moves along.`;
+      return state === null ? t("redeemedPlain") : t("redeemed", { state });
     case "TransitionRedemption":
-      return `Done: the redemption is now ${r.ok ? (r.value as { state: string }).state : "updated"}.`;
+      return t("redemptionDone", { state: state ?? stateText("updated", locale) });
     case "ReviewSubmission":
-      return `Done: the submission is now ${r.ok ? (r.value as { state: string }).state : "reviewed"}.`;
+      return t("submissionDone", { state: state ?? stateText("reviewed", locale) });
     default:
-      return "Done.";
+      return t("done");
   }
 };
 
@@ -179,7 +197,7 @@ export async function handleAction(d: InboundDeps, payload: SlackBlockAction): P
   const cmd = actionCommand(payload, ws, actor, d.rt.ports.clock.now());
   if (cmd === null) return null;
   const r = await d.rt.app.execute(cmd);
-  const ctx = await renderContext(d, ws);
+  const ctx = await memberContext(d, ws, actor.memberId);
   const error: DomainError | null = r.ok ? null : r.error;
-  return { text: actionResultText(r.ok, okText(cmd, r), error, ctx), ok: r.ok, refreshHome: cmd.type === "Redeem" };
+  return { text: actionResultText(r.ok, okText(cmd, r, ctx.locale), error, ctx), ok: r.ok, refreshHome: cmd.type === "Redeem" };
 }

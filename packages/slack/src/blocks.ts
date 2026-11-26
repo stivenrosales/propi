@@ -1,9 +1,16 @@
 // Block Kit rendering for DMs, channel posts, the App Home and the /propi replies (S13, S28, S29,
 // S48, S54, S61, S83, S84, S86, S89, S93, S95). Pure: data in, Slack message/view JSON out. Every
 // unit name comes from the workspace currency (S1); nothing here is hard-coded to tacos.
-import { formatUnits, type AllowanceView, type Balances, type Currency, type DomainError, type MemberId, type Reward } from "@propi/app";
+// i18n S1, S4d: every text is in `ctx.locale`; the caller picks it (the recipient member's language
+// for DMs, App Home and ephemeral replies, the workspace default for channel posts).
+import type { AllowanceView, Balances, Currency, DomainError, MemberId, Reward } from "@propi/app";
 import type { LeaderboardRow } from "@propi/core/boards";
+import { formatNumber, type Locale } from "@propi/core/i18n";
 import type { Notification } from "@propi/core/notify";
+import { errors, states } from "./i18n/errors.messages.ts";
+import { home } from "./i18n/home.messages.ts";
+import { notifications } from "./i18n/notifications.messages.ts";
+import { shop } from "./i18n/shop.messages.ts";
 import { ACTIONS, redeemQuantityValue, redeemValue } from "./interact.ts";
 
 /** A Block Kit block. Kept structural: Slack validates the JSON, tests pin the shapes. */
@@ -26,6 +33,8 @@ export interface RenderContext {
   who(member: MemberId): string;
   /** The web app (shop, dashboards), when configured. */
   readonly appUrl: string | null;
+  /** i18n S4d: the language of the reader (a member's for DMs and replies, the workspace's for channel posts). */
+  readonly locale: Locale;
 }
 
 const md = (text: string): Block => ({ type: "section", text: { type: "mrkdwn", text } });
@@ -42,82 +51,87 @@ const button = (text: string, actionId: string, value: string, style?: "primary"
 });
 const msg = (text: string, ...blocks: Block[]): SlackMessageBody => ({ text, blocks: blocks.length === 0 ? [md(text)] : blocks });
 
-const units = (ctx: RenderContext, n: number) => `${ctx.currency.primaryEmoji} ${formatUnits(ctx.currency, n)}`;
+/** "3 tacos" with the number formatted for the reader; the unit names are workspace data (S1). */
+const amount = (ctx: RenderContext, n: number) => `${formatNumber(ctx.locale, n)} ${Math.abs(n) === 1 ? ctx.currency.singular : ctx.currency.plural}`;
+const units = (ctx: RenderContext, n: number) => `${ctx.currency.primaryEmoji} ${amount(ctx, n)}`;
+const num = (ctx: RenderContext, n: number) => formatNumber(ctx.locale, n);
+const list = (items: readonly string[]) => items.join(", ");
+
+/** A redemption's or submission's state as a word in the reader's language. */
+export const stateText = (state: string, locale: Locale): string => (state in states.en ? states.t(locale)(state as keyof typeof states.en) : state);
 
 /** Slack mrkdwn escaping for user-provided text. */
 export const escapeText = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** S13 and friends: a refusal in plain words. */
 export function errorText(error: DomainError, ctx: RenderContext): string {
+  const t = errors.t(ctx.locale);
   switch (error.code) {
     case "over_allowance":
-      return `That would cost ${formatUnits(ctx.currency, error.cost)}, but you have ${formatUnits(ctx.currency, error.remaining)} left to give today. Mention fewer people or use fewer ${ctx.currency.plural}; your allowance resets at midnight.`;
+      return t("over_allowance", { cost: amount(ctx, error.cost), remaining: amount(ctx, error.remaining), plural: ctx.currency.plural });
     case "channel_not_allowed":
-      return `${ctx.currency.plural} can't be given in this conversation. Try a public channel.`;
+      return t("channel_not_allowed", { plural: ctx.currency.plural });
     case "inactive_member":
-      return "Your account is deactivated in this workspace.";
     case "bots_may_not_give":
-      return "Bots can't give in this workspace.";
-    case "insufficient_redeemable":
-      return `That reward costs ${formatUnits(ctx.currency, error.cost)} and you have ${formatUnits(ctx.currency, error.redeemable)} to spend.`;
     case "out_of_stock":
-      return "That reward is out of stock.";
     case "budget_exceeded":
-      return "The shop's monthly budget is used up. Try again next month.";
     case "plan_limit":
-      return "Your workspace is over the Free plan limit. Ask an admin to upgrade to Pro.";
+    case "forbidden":
+    case "idempotency_key_reused":
+      return t(error.code);
+    case "insufficient_redeemable":
+      return t("insufficient_redeemable", { cost: amount(ctx, error.cost), redeemable: amount(ctx, error.redeemable) });
     case "reward_not_active":
     case "reward_not_found":
-      return "That reward is no longer available.";
-    case "forbidden":
-      return "You don't have permission to do that.";
+      return t("reward_unavailable");
     case "illegal_transition":
-      return `That redemption is already ${error.from}.`;
-    case "idempotency_key_reused":
-      return "That was already handled.";
+      return t("illegal_transition", { state: stateText(error.from, ctx.locale) });
     default:
-      return `That didn't work (${error.code}).`;
+      return t("unknown", { code: error.code });
   }
 }
 
 /** S29, S83, S13, S84, S86, S89: one private notification. */
 export function notificationMessage(n: Notification, ctx: RenderContext): SlackMessageBody {
+  const t = notifications.t(ctx.locale);
   switch (n.type) {
-    case "gift_confirmation": {
-      const left = n.remainingAllowance === null ? "" : ` You have ${formatUnits(ctx.currency, n.remainingAllowance)} left to give today.`;
-      return msg(`You gave ${units(ctx, n.totalCost)}.${left}`);
-    }
+    case "gift_confirmation":
+      return msg(
+        n.remainingAllowance === null
+          ? t("gift.confirmation", { amount: units(ctx, n.totalCost) })
+          : t("gift.confirmationLeft", { amount: units(ctx, n.totalCost), left: amount(ctx, n.remainingAllowance) }),
+      );
     case "gift_received": {
-      const where = n.channelId === null ? "" : ` in <#${n.channelId}>`;
       const quote = n.text === null || n.text === "" ? [] : [context(`> ${escapeText(n.text).replace(/\n/g, "\n> ")}`)];
-      const text = `${ctx.who(n.giver)} gave you ${units(ctx, n.amount)}${where}.`;
+      const text =
+        n.channelId === null
+          ? t("gift.received", { giver: ctx.who(n.giver), amount: units(ctx, n.amount) })
+          : t("gift.receivedIn", { giver: ctx.who(n.giver), amount: units(ctx, n.amount), channel: `<#${n.channelId}>` });
       return msg(text, md(text), ...quote);
     }
     case "gift_rejected":
-      return msg(`Nothing was given. ${errorText(n.error, ctx)}`);
-    case "adjustment": {
-      const verb = n.kind === "bonus" ? "added" : "removed";
-      return msg(`An admin ${verb} ${units(ctx, n.amount)}: ${escapeText(n.reason)}`);
-    }
+      return msg(t("gift.rejected", { reason: errorText(n.error, ctx) }));
+    case "adjustment":
+      return msg(t(n.kind === "bonus" ? "adjustment.bonus" : "adjustment.removed", { amount: units(ctx, n.amount), reason: escapeText(n.reason) }));
     case "weekly_report": {
       const r = n.report;
-      const top = r.topGivers.length === 0 ? "nobody yet" : r.topGivers.map((g) => `${ctx.who(g.memberId)} (${g.units})`).join(", ");
-      const gave = r.gaveTo.length === 0 ? "nobody this week" : r.gaveTo.map((g) => `${ctx.who(g.memberId)} (${g.units})`).join(", ");
-      const shop = r.shopUrl ?? (ctx.appUrl === null ? null : `${ctx.appUrl}/shop`);
-      const text = `Your week in ${ctx.currency.plural} (${r.week})`;
+      const top = r.topGivers.length === 0 ? t("report.nobodyYet") : list(r.topGivers.map((g) => `${ctx.who(g.memberId)} (${num(ctx, g.units)})`));
+      const gave = r.gaveTo.length === 0 ? t("report.nobodyThisWeek") : list(r.gaveTo.map((g) => `${ctx.who(g.memberId)} (${num(ctx, g.units)})`));
+      const shopUrl = r.shopUrl ?? (ctx.appUrl === null ? null : `${ctx.appUrl}/shop`);
+      const text = t("report.title", { plural: ctx.currency.plural, week: r.week });
       return msg(
         text,
         header(text),
-        md(`*Team this month:* ${formatUnits(ctx.currency, r.team.monthToDate)} (same point last month: ${r.team.lastMonthSamePoint})`),
-        md(`*Top givers this week:* ${top}`),
-        md(`*You gave this month:* ${formatUnits(ctx.currency, r.own.monthToDate)} (last month: ${r.own.lastMonthSamePoint})\n*You gave to:* ${gave}`),
-        md(`*You can spend:* ${units(ctx, r.redeemable)}${shop === null ? "" : ` · <${shop}|Open the shop>`}`),
+        md(t("report.team", { total: amount(ctx, r.team.monthToDate), last: r.team.lastMonthSamePoint })),
+        md(t("report.topGivers", { list: top })),
+        md(t("report.own", { total: amount(ctx, r.own.monthToDate), last: r.own.lastMonthSamePoint, list: gave })),
+        md(`${t("report.spend", { amount: units(ctx, r.redeemable) })}${shopUrl === null ? "" : ` · <${shopUrl}|${t("report.openShop")}>`}`),
       );
     }
     case "nudge":
-      return msg(`You still have ${formatUnits(ctx.currency, n.unused)} to give this week. Who helped you lately? Mention them with ${ctx.currency.primaryEmoji}.`);
+      return msg(t("nudge", { amount: amount(ctx, n.unused), emoji: ctx.currency.primaryEmoji }));
     case "isolation_alert":
-      return msg(`These people haven't received any ${ctx.currency.plural} in ${n.weeks} weeks: ${n.isolated.map((id) => ctx.who(id)).join(", ")}.`);
+      return msg(t("isolation", { plural: ctx.currency.plural, weeks: n.weeks, list: list(n.isolated.map((id) => ctx.who(id))) }));
   }
 }
 
@@ -134,18 +148,17 @@ const unitsOf = (title: string, quantity: number | undefined): string => (quanti
 
 /** S54: the member's private notice for a redemption state change. */
 export function redemptionMessage(e: RedemptionNotice, ctx: RenderContext): SlackMessageBody {
-  const what = e.rewardTitle === null ? "your redemption" : `*${escapeText(unitsOf(e.rewardTitle, e.quantity))}*`;
+  const t = notifications.t(ctx.locale);
+  const what = e.rewardTitle === null ? t("redemption.yours") : `*${escapeText(unitsOf(e.rewardTitle, e.quantity))}*`;
   switch (e.type) {
     case "redemption.created":
-      return msg(`You redeemed ${what} for ${units(ctx, e.cost)}. We'll let you know when it's approved.`);
+      return msg(t("redemption.created", { what, amount: units(ctx, e.cost) }));
     case "redemption.approved":
-      return msg(`Your redemption of ${what} was approved.`);
     case "redemption.fulfilled":
-      return msg(`Your redemption of ${what} was fulfilled. Enjoy!`);
+      return msg(t(e.type, { what }));
     case "redemption.rejected":
-      return msg(`Your redemption of ${what} was rejected. ${formatUnits(ctx.currency, e.cost)} went back to your balance.`);
     case "redemption.cancelled":
-      return msg(`Your redemption of ${what} was cancelled. ${formatUnits(ctx.currency, e.cost)} went back to your balance.`);
+      return msg(t(e.type, { what, refund: amount(ctx, e.cost) }));
   }
 }
 
@@ -154,20 +167,23 @@ export function redemptionApprovalMessage(
   r: { readonly redemptionId: string; readonly member: MemberId | null; readonly rewardTitle: string | null; readonly cost: number; readonly quantity?: number },
   ctx: RenderContext,
 ): SlackMessageBody {
-  const who = r.member === null ? "A group" : ctx.who(r.member);
-  const text = `${who} redeemed ${r.rewardTitle === null ? "a reward" : `*${escapeText(unitsOf(r.rewardTitle, r.quantity))}*`} for ${units(ctx, r.cost)}.`;
+  const t = notifications.t(ctx.locale);
+  const who = r.member === null ? t("approval.aGroup") : ctx.who(r.member);
+  const what = r.rewardTitle === null ? t("approval.aReward") : `*${escapeText(unitsOf(r.rewardTitle, r.quantity))}*`;
+  const text = t("approval.redeemed", { who, what, amount: units(ctx, r.cost) });
   return msg(text, md(text), {
     type: "actions",
-    elements: [button("Approve", ACTIONS.approveRedemption, r.redemptionId, "primary"), button("Reject", ACTIONS.rejectRedemption, r.redemptionId, "danger")],
+    elements: [button(t("approval.approve"), ACTIONS.approveRedemption, r.redemptionId, "primary"), button(t("approval.reject"), ACTIONS.rejectRedemption, r.redemptionId, "danger")],
   });
 }
 
 /** S6, S64: the approver's request for a quest submission. */
 export function submissionApprovalMessage(s: { readonly submissionId: string; readonly member: MemberId; readonly questTitle: string | null }, ctx: RenderContext): SlackMessageBody {
-  const text = `${ctx.who(s.member)} completed ${s.questTitle === null ? "a quest" : `*${escapeText(s.questTitle)}*`} and is waiting for review.`;
+  const t = notifications.t(ctx.locale);
+  const text = t("submission.waiting", { who: ctx.who(s.member), what: s.questTitle === null ? t("quest.a") : `*${escapeText(s.questTitle)}*` });
   return msg(text, md(text), {
     type: "actions",
-    elements: [button("Approve", ACTIONS.approveSubmission, s.submissionId, "primary"), button("Reject", ACTIONS.rejectSubmission, s.submissionId, "danger")],
+    elements: [button(t("approval.approve"), ACTIONS.approveSubmission, s.submissionId, "primary"), button(t("approval.reject"), ACTIONS.rejectSubmission, s.submissionId, "danger")],
   });
 }
 
@@ -176,60 +192,61 @@ export function actionResultText(ok: boolean, okText: string, error: DomainError
   return ok || error === null ? okText : errorText(error, ctx);
 }
 
-export const questMessage = (e: { readonly type: "quest.approved" | "quest.rejected"; readonly amount?: number }, title: string | null, ctx: RenderContext): SlackMessageBody =>
-  e.type === "quest.approved"
-    ? msg(`Your submission for ${title === null ? "a quest" : `*${escapeText(title)}*`} was approved${e.amount === undefined ? "" : `: ${units(ctx, e.amount)}`}.`)
-    : msg(`Your submission for ${title === null ? "a quest" : `*${escapeText(title)}*`} was not approved this time.`);
+export function questMessage(e: { readonly type: "quest.approved" | "quest.rejected"; readonly amount?: number }, title: string | null, ctx: RenderContext): SlackMessageBody {
+  const t = notifications.t(ctx.locale);
+  const what = title === null ? t("quest.a") : `*${escapeText(title)}*`;
+  if (e.type === "quest.rejected") return msg(t("quest.rejected", { what }));
+  return msg(e.amount === undefined ? t("quest.approved", { what }) : t("quest.approvedAmount", { what, amount: units(ctx, e.amount) }));
+}
 
 /** S61: a rule award announcement. */
 export const ruleAwardMessage = (e: { readonly winners: readonly MemberId[]; readonly amount: number; readonly period: string }, ctx: RenderContext): SlackMessageBody =>
-  msg(`Award for ${e.period}: ${e.winners.map((w) => ctx.who(w)).join(", ")} get ${units(ctx, e.amount)}. Congratulations!`);
+  msg(notifications.t(ctx.locale)("ruleAward", { period: e.period, winners: list(e.winners.map((w) => ctx.who(w))), amount: units(ctx, e.amount) }));
 
 /** S93: a celebration post or DM. */
 export function celebrationMessage(e: { readonly memberId: MemberId; readonly kind: string; readonly years: number | null }, ctx: RenderContext): SlackMessageBody {
-  if (e.kind === "birthday") return msg(`:birthday: Happy birthday, ${ctx.who(e.memberId)}!`);
-  const years = e.years === null ? "" : ` ${e.years} year${e.years === 1 ? "" : "s"}`;
-  return msg(`:tada: Happy${years} work anniversary, ${ctx.who(e.memberId)}!`);
+  const t = notifications.t(ctx.locale);
+  const who = ctx.who(e.memberId);
+  if (e.kind === "birthday") return msg(t("birthday", { who }));
+  return msg(e.years === null ? t("anniversary", { who }) : t("anniversaryYears", { count: e.years, who }));
 }
 
 /** S95: the pairing group DM. */
 export const pairingMessage = (e: { readonly groups: unknown; readonly prompt: string | null }, members: readonly MemberId[], ctx: RenderContext): SlackMessageBody =>
-  msg(`Hi ${members.map((id) => ctx.who(id)).join(", ")}! You've been paired for a chat this round.${e.prompt === null ? "" : `\n> ${escapeText(e.prompt)}`}`);
+  msg(`${notifications.t(ctx.locale)("pairing", { names: list(members.map((id) => ctx.who(id))) })}${e.prompt === null ? "" : `\n> ${escapeText(e.prompt)}`}`);
 
 /** S57, S58: collaborative reward outcomes for contributors. */
 export function collabMessage(e: { readonly type: "collab.completed" | "collab.refunded"; readonly total?: number }, ctx: RenderContext): SlackMessageBody {
-  return e.type === "collab.completed"
-    ? msg("A group reward you contributed to reached its goal!")
-    : msg(`A group reward you contributed to was closed before its goal. Your contribution went back to your balance${e.total === undefined ? "" : ` (${formatUnits(ctx.currency, e.total)} in total were refunded)`}.`);
+  const t = notifications.t(ctx.locale);
+  if (e.type === "collab.completed") return msg(t("collab.completed"));
+  return msg(e.total === undefined ? t("collab.refunded") : t("collab.refundedTotal", { total: amount(ctx, e.total) }));
 }
 
 /** S90 (admins): reciprocity pairs to review. */
 export const reciprocityMessage = (pairs: readonly { readonly a: MemberId; readonly b: MemberId }[], period: string, ctx: RenderContext): SlackMessageBody =>
-  msg(`Reciprocity check for ${period}: these pairs send most of their ${ctx.currency.plural} to each other. Nothing was blocked; please review.\n${pairs.map((p) => `• ${ctx.who(p.a)} ↔ ${ctx.who(p.b)}`).join("\n")}`);
+  msg(notifications.t(ctx.locale)("reciprocity", { period, plural: ctx.currency.plural, pairs: pairs.map((p) => `• ${ctx.who(p.a)} ↔ ${ctx.who(p.b)}`).join("\n") }));
 
 /** S91 (admins): the monthly digest. */
 export function digestMessage(d: { readonly month: string; readonly team: readonly { readonly title: string; readonly summary: string }[] }, ctx: RenderContext): SlackMessageBody {
-  const text = `Recognition digest for ${d.month}`;
-  const themes = d.team.length === 0 ? [md(`No ${ctx.currency.plural} with a message this month.`)] : d.team.map((t) => md(`*${escapeText(t.title)}*\n${escapeText(t.summary)}`));
+  const t = notifications.t(ctx.locale);
+  const text = t("digest.title", { month: d.month });
+  const themes = d.team.length === 0 ? [md(t("digest.empty", { plural: ctx.currency.plural }))] : d.team.map((x) => md(`*${escapeText(x.title)}*\n${escapeText(x.summary)}`));
   return msg(text, header(text), ...themes);
 }
 
 // ───────────── /propi, the shop and the App Home (S28, S48) ─────────────
 
 export function balanceMessage(b: Balances, a: AllowanceView, ctx: RenderContext): SlackMessageBody {
+  const t = shop.t(ctx.locale);
   return msg(
-    `You can spend ${formatUnits(ctx.currency, b.redeemable)} and give ${formatUnits(ctx.currency, a.remaining)} more today.`,
-    md(`*You can spend:* ${units(ctx, b.redeemable)}\n*Left to give today:* ${formatUnits(ctx.currency, a.remaining)} of ${a.limit}\n*Received:* ${b.received} · *Given:* ${b.given}`),
+    t("balance.text", { spend: amount(ctx, b.redeemable), give: amount(ctx, a.remaining) }),
+    md(t("balance.blocks", { spend: units(ctx, b.redeemable), left: amount(ctx, a.remaining), limit: a.limit, received: b.received, given: b.given })),
   );
 }
 
 export function helpMessage(ctx: RenderContext): SlackMessageBody {
-  const c = ctx.currency;
-  return msg(
-    "How Propi works",
-    md(`*Give:* mention someone and add ${c.primaryEmoji} in a channel, e.g. \`@ana thanks for the review ${c.primaryEmoji}${c.primaryEmoji}\`. React with ${c.primaryEmoji} to give too.`),
-    md("*Commands:*\n`/propi balance` your balance and what you can still give today\n`/propi shop` rewards you can redeem\n`/propi sticker <id> @someone` give a sticker (when stickers are on)\n`/propi help` this message"),
-  );
+  const t = home.t(ctx.locale);
+  return msg(t("help.title"), md(t("help.give", { emoji: ctx.currency.primaryEmoji })), md(t("help.commands")));
 }
 
 /** S2: the most units the "Redeem more" picker offers; the web shop has no such cap. */
@@ -240,11 +257,12 @@ const PICKER_MAX = 10;
  * each label showing the total. Null when no option allows two units. Core stays the source of truth.
  */
 function quantityPicker(r: Reward, options: readonly { label: string; rewardId: string; variantId: string | null; stock: number | null }[], redeemable: number, ctx: RenderContext): Block | null {
+  const t = shop.t(ctx.locale);
   const byBalance = Math.floor(redeemable / r.cost);
   const choices = options.flatMap((o) => {
     const max = Math.min(PICKER_MAX, byBalance, o.stock ?? PICKER_MAX);
     return Array.from({ length: Math.max(0, max - 1) }, (_, i) => i + 2).map((q) => ({
-      text: { type: "plain_text", text: `${q} × ${o.label} · ${formatUnits(ctx.currency, r.cost * q)}`.slice(0, 75), emoji: true },
+      text: { type: "plain_text", text: `${q} × ${o.label} · ${amount(ctx, r.cost * q)}`.slice(0, 75), emoji: true },
       value: redeemQuantityValue(o.rewardId, o.variantId, q),
     }));
   });
@@ -252,52 +270,55 @@ function quantityPicker(r: Reward, options: readonly { label: string; rewardId: 
   return {
     type: "static_select",
     action_id: ACTIONS.redeemQuantity,
-    placeholder: { type: "plain_text", text: "Redeem more", emoji: true },
+    placeholder: { type: "plain_text", text: t("picker.placeholder"), emoji: true },
     options: choices.slice(0, 100),
     confirm: {
       type: "confirm" as const,
-      title: { type: "plain_text", text: "Redeem several?" },
-      text: { type: "mrkdwn", text: `Spend the total shown for *${escapeText(r.title)}*? One approval covers every unit.` },
-      confirm: { type: "plain_text", text: "Redeem" },
-      deny: { type: "plain_text", text: "Cancel" },
+      title: { type: "plain_text", text: t("picker.title") },
+      text: { type: "mrkdwn", text: t("picker.text", { title: escapeText(r.title) }) },
+      confirm: { type: "plain_text", text: t("redeem") },
+      deny: { type: "plain_text", text: t("cancel") },
     },
   };
 }
 
 function rewardBlocks(r: Reward, redeemable: number, ctx: RenderContext): Block[] {
-  const stock = r.variants.length === 0 && r.stock !== null ? ` · ${r.stock} left` : "";
+  const t = shop.t(ctx.locale);
+  const stock = r.variants.length === 0 && r.stock !== null ? ` · ${t("stockLeft", { count: r.stock })}` : "";
   const desc = r.description === "" ? "" : `\n${escapeText(r.description)}`;
   const section: Block = { ...md(`*${escapeText(r.title)}* · ${units(ctx, r.cost)}${stock}${desc}`) };
   const affordable = redeemable >= r.cost;
   const confirm = (label: string): Block => ({
     type: "confirm" as const,
-    title: { type: "plain_text", text: "Redeem?" },
-    text: { type: "mrkdwn", text: `Spend ${formatUnits(ctx.currency, r.cost)} on *${escapeText(label)}*?` },
-    confirm: { type: "plain_text", text: "Redeem" },
-    deny: { type: "plain_text", text: "Cancel" },
+    title: { type: "plain_text", text: t("confirm.title") },
+    text: { type: "mrkdwn", text: t("confirm.text", { cost: amount(ctx, r.cost), label: escapeText(label) }) },
+    confirm: { type: "plain_text", text: t("redeem") },
+    deny: { type: "plain_text", text: t("cancel") },
   });
   const options =
     r.variants.length === 0
       ? [{ label: r.title, value: redeemValue(r.id, null), out: r.stock !== null && r.stock <= 0, variantId: null, stock: r.stock }]
       : r.variants.map((v) => ({ label: `${r.title} (${v.name})`, value: redeemValue(r.id, v.id), out: v.stock !== null && v.stock <= 0, name: v.name, variantId: v.id, stock: v.stock }));
   const available = options.filter((o) => !o.out).slice(0, 5);
-  const buttons = available.map((o) => button("name" in o ? `Redeem ${o.name}` : "Redeem", ACTIONS.redeem, o.value, "primary", confirm(o.label)));
-  if (!affordable || buttons.length === 0) return [section, context(buttons.length === 0 ? "Out of stock" : `You need ${formatUnits(ctx.currency, r.cost - redeemable)} more`)];
+  const buttons = available.map((o) => button("name" in o ? t("redeemVariant", { name: o.name }) : t("redeem"), ACTIONS.redeem, o.value, "primary", confirm(o.label)));
+  if (!affordable || buttons.length === 0) return [section, context(buttons.length === 0 ? t("outOfStock") : t("needMore", { amount: amount(ctx, r.cost - redeemable) }))];
   const picker = quantityPicker(r, available.map((o) => ({ label: o.label, rewardId: r.id, variantId: o.variantId, stock: o.stock })), redeemable, ctx);
   return [section, { type: "actions", elements: picker === null ? buttons : [...buttons, picker] }];
 }
 
 export function shopBlocks(rewards: readonly Reward[], redeemable: number, ctx: RenderContext, limit = 15): Block[] {
   const active = rewards.filter((r) => r.status === "active");
-  if (active.length === 0) return [md("The shop is empty for now.")];
+  const t = shop.t(ctx.locale);
+  if (active.length === 0) return [md(t("empty"))];
   const out: Block[] = [];
   for (const r of active.slice(0, limit)) out.push(...rewardBlocks(r, redeemable, ctx));
-  if (active.length > limit && ctx.appUrl !== null) out.push(context(`<${ctx.appUrl}/shop|See all ${active.length} rewards>`));
+  if (active.length > limit && ctx.appUrl !== null) out.push(context(`<${ctx.appUrl}/shop|${t("seeAll", { count: active.length })}>`));
   return out;
 }
 
 export function shopMessage(rewards: readonly Reward[], redeemable: number, ctx: RenderContext): SlackMessageBody {
-  return msg(`The shop. You can spend ${formatUnits(ctx.currency, redeemable)}.`, md(`*The shop* · you can spend ${units(ctx, redeemable)}`), ...shopBlocks(rewards, redeemable, ctx, 10));
+  const t = shop.t(ctx.locale);
+  return msg(t("message.text", { amount: amount(ctx, redeemable) }), md(t("message.header", { amount: units(ctx, redeemable) })), ...shopBlocks(rewards, redeemable, ctx, 10));
 }
 
 export interface HomeData {
@@ -314,51 +335,50 @@ export interface HomeData {
 const MEDALS = [":first_place_medal:", ":second_place_medal:", ":third_place_medal:"];
 
 function boardText(rows: readonly LeaderboardRow[], ctx: RenderContext): string {
-  if (rows.length === 0) return `_No ${ctx.currency.plural} yet._`;
-  return rows.map((r) => `${MEDALS[r.rank - 1] ?? `${r.rank}.`} ${ctx.who(r.memberId)} · *${r.score.toLocaleString("en-US")}*`).join("\n");
+  if (rows.length === 0) return home.t(ctx.locale)("noneYet", { plural: ctx.currency.plural });
+  return rows.map((r) => `${MEDALS[r.rank - 1] ?? `${r.rank}.`} ${ctx.who(r.memberId)} · *${num(ctx, r.score)}*`).join("\n");
 }
 
 /** S28, S48: the App Home tab. */
 export function homeView(d: HomeData, ctx: RenderContext): HomeView {
   const c = ctx.currency;
-  const plural = c.plural.charAt(0).toUpperCase() + c.plural.slice(1);
+  const t = home.t(ctx.locale);
+  const Plural = c.plural.charAt(0).toUpperCase() + c.plural.slice(1);
   const blocks: Block[] = [
-    header(`${c.primaryEmoji} Your ${c.plural}`),
+    header(t("title", { emoji: c.primaryEmoji, plural: c.plural })),
     {
       type: "section",
       fields: [
-        { type: "mrkdwn", text: `*Received*\n${c.primaryEmoji} ${d.balances.received.toLocaleString("en-US")}` },
-        { type: "mrkdwn", text: `*Given*\n${c.primaryEmoji} ${d.balances.given.toLocaleString("en-US")}` },
-        { type: "mrkdwn", text: `*You can spend*\n${c.primaryEmoji} ${d.balances.redeemable.toLocaleString("en-US")}` },
-        { type: "mrkdwn", text: `*Left to give today*\n${d.allowance.remaining} of ${d.allowance.limit}` },
+        { type: "mrkdwn", text: t("received", { value: `${c.primaryEmoji} ${num(ctx, d.balances.received)}` }) },
+        { type: "mrkdwn", text: t("given", { value: `${c.primaryEmoji} ${num(ctx, d.balances.given)}` }) },
+        { type: "mrkdwn", text: t("spend", { value: `${c.primaryEmoji} ${num(ctx, d.balances.redeemable)}` }) },
+        { type: "mrkdwn", text: t("left", { left: d.allowance.remaining, limit: d.allowance.limit }) },
       ],
     },
   ];
-  if (d.level !== null) blocks.push(context(`:star: Level ${d.level.level} · ${escapeText(d.level.title)}`));
+  if (d.level !== null) blocks.push(context(t("level", { level: d.level.level, title: escapeText(d.level.title) })));
   if (d.upgradePrompt != null) {
     const p = d.upgradePrompt;
-    const link = ctx.appUrl === null ? "Upgrade to Pro in the web admin" : `<${ctx.appUrl}/admin/billing|Upgrade to Pro>`;
-    blocks.push(md(`:warning: *Your workspace is over the Free plan limit (${p.activeMembers} of ${p.limit} active members).* Recognition keeps working, but the shop takes no new redemptions. ${link}`));
+    const link = ctx.appUrl === null ? t("upgradeNoLink") : `<${ctx.appUrl}/admin/billing|${t("upgradeLink")}>`;
+    blocks.push(md(t("upgrade", { active: p.activeMembers, limit: p.limit, link })));
   }
-  if (ctx.appUrl !== null) blocks.push(context(`<${ctx.appUrl}/app|Open your dashboard> · <${ctx.appUrl}/app/shop|${plural} shop>`));
+  if (ctx.appUrl !== null) blocks.push(context(`<${ctx.appUrl}/app|${t("dashboard")}> · <${ctx.appUrl}/app/shop|${t("shopLink", { Plural })}>`));
   blocks.push(divider);
   if (d.leaderboard !== null) {
-    blocks.push(header(":trophy: Leaderboard"));
+    blocks.push(header(t("leaderboard")));
     blocks.push({
       type: "section",
       fields: [
-        { type: "mrkdwn", text: `*This month*\n${boardText(d.leaderboard.month, ctx)}` },
-        { type: "mrkdwn", text: `*All time*\n${boardText(d.leaderboard.allTime, ctx)}` },
+        { type: "mrkdwn", text: t("thisMonth", { rows: boardText(d.leaderboard.month, ctx) }) },
+        { type: "mrkdwn", text: t("allTime", { rows: boardText(d.leaderboard.allTime, ctx) }) },
       ],
     });
     blocks.push(divider);
   }
-  blocks.push(header(":shopping_bags: Shop"));
-  blocks.push(context(`You can spend ${units(ctx, d.balances.redeemable)}`));
+  blocks.push(header(t("shop")));
+  blocks.push(context(t("shopSpend", { amount: units(ctx, d.balances.redeemable) })));
   blocks.push(...shopBlocks(d.rewards, d.balances.redeemable, ctx, 6));
   blocks.push(divider);
-  blocks.push(
-    md(`*How to give:* mention someone and add ${c.primaryEmoji} with a reason, e.g. \`@ana thanks for the review ${c.primaryEmoji}${c.primaryEmoji}\`, or react with ${c.primaryEmoji}. Type \`/propi help\` for more.`),
-  );
+  blocks.push(md(t("howTo", { emoji: c.primaryEmoji })));
   return { type: "home", blocks: blocks.slice(0, 100) };
 }

@@ -4,7 +4,7 @@ import type { MemberId, PosInt, Reward } from "@propi/app";
 import { errorText, homeView, notificationMessage, redemptionApprovalMessage, redemptionMessage, shopBlocks, type RenderContext } from "../src/index.ts";
 import { settings } from "./lookup.ts";
 
-const ctx: RenderContext = { currency: settings().currency, who: (m) => (m === "ana" ? "<@U0ANA00001>" : "a teammate"), appUrl: "https://propi.example" };
+const ctx: RenderContext = { currency: settings().currency, who: (m) => (m === "ana" ? "<@U0ANA00001>" : "a teammate"), appUrl: "https://propi.example", locale: "en" };
 const m = (s: string) => s as MemberId;
 const reward = (over: Partial<Reward> = {}): Reward => ({
   id: "reward-mug",
@@ -153,5 +153,51 @@ describe("S7 plan limit in Slack", () => {
 
   test("a refused redemption explains the plan limit", () => {
     expect(errorText({ code: "plan_limit", limit: 10, activeMembers: 12 } as never, ctx)).toBe("Your workspace is over the Free plan limit. Ask an admin to upgrade to Pro.");
+  });
+});
+
+describe("i18n S1 S4d Slack texts in Spanish", () => {
+  const es: RenderContext = { ...ctx, locale: "es", who: (x) => (x === "ana" ? "<@U0ANA00001>" : "alguien del equipo") };
+  const homeData = { balances: { received: 1234, given: 1, redeemable: 3 }, allowance: { day: "2026-11-25" as never, limit: 5, used: 1, remaining: 4 }, leaderboard: null, rewards: [], level: null };
+
+  test("the gift notifications read in Spanish with the workspace currency untouched", () => {
+    expect(notificationMessage({ type: "gift_received", to: m("bob"), giftId: "g1" as never, giver: m("ana"), amount: 2, channelId: "C1", text: null }, es).text).toBe(
+      "<@U0ANA00001> te dio :taco: 2 tacos en <#C1>.",
+    );
+    expect(notificationMessage({ type: "gift_confirmation", to: m("giver"), giftId: "g1" as never, totalCost: 1, remainingAllowance: 4 }, es).text).toBe(
+      "Diste :taco: 1 taco. Hoy te quedan 4 tacos por dar.",
+    );
+  });
+
+  test("error texts are translated", () => {
+    expect(errorText({ code: "over_allowance", cost: 6, remaining: 2 }, es)).toBe(
+      "Eso costaría 6 tacos, pero hoy te quedan 2 tacos por dar. Menciona a menos personas o usa menos tacos; tu cupo se renueva a medianoche.",
+    );
+    expect(errorText({ code: "illegal_transition", from: "approved" } as never, es)).toBe("Ese canje ya está aprobado.");
+    expect(errorText({ code: "plan_limit", limit: 10, activeMembers: 12 } as never, es)).toBe("Tu espacio de trabajo superó el límite del plan Free. Pídele a un admin que pase a Pro.");
+  });
+
+  test("a redemption approval with a quantity, its buttons and the member's notice", () => {
+    const approval = redemptionApprovalMessage({ redemptionId: "r-1", member: m("ana"), rewardTitle: "Mug", cost: 9, quantity: 3 }, es);
+    expect(approval.text).toBe("<@U0ANA00001> canjeó *3 × Mug* por :taco: 9 tacos.");
+    expect(approval.blocks[1]).toMatchObject({ elements: [{ text: { text: "Aprobar" } }, { text: { text: "Rechazar" } }] });
+    expect(redemptionMessage({ type: "redemption.rejected", cost: 9, quantity: 3, rewardTitle: "Mug" }, es).text).toBe("Tu canje de *3 × Mug* fue rechazado. Te devolvimos 9 tacos a tu saldo.");
+  });
+
+  test("the Redeem more picker and the Redeem button", () => {
+    const actions = shopBlocks([reward({ stock: 4 })], 9, es)[1] as unknown as { elements: Record<string, unknown>[] };
+    expect(actions.elements[0]).toMatchObject({ text: { text: "Canjear" }, confirm: { title: { text: "¿Canjear?" }, deny: { text: "Cancelar" } } });
+    expect(actions.elements[1]).toMatchObject({ placeholder: { text: "Canjear más" }, confirm: { title: { text: "¿Canjear varios?" } } });
+    expect(shopBlocks([reward()], 1, es)[1]).toEqual({ type: "context", elements: [{ type: "mrkdwn", text: "Te faltan 2 tacos" }] });
+  });
+
+  test("the App Home is in Spanish (es-419 groups thousands with a comma too)", () => {
+    const json = JSON.stringify(homeView({ ...homeData, upgradePrompt: { activeMembers: 12, limit: 10 } }, es).blocks);
+    expect(json).toContain("*Recibidos*\\n:taco: 1,234");
+    expect(json).toContain("*Te quedan por dar hoy*\\n4 de 5");
+    expect(json).toContain("<https://propi.example/admin/billing|Pasar a Pro>");
+    expect(json).toContain(":shopping_bags: Tienda");
+    expect(json).not.toMatch(/You can spend|Left to give|Received/);
+    expect(JSON.stringify(homeView(homeData, ctx).blocks)).toContain("*Received*\\n:taco: 1,234");
   });
 });

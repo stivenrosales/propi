@@ -32,7 +32,9 @@ import {
   type RenderContext,
   type SlackMessageBody,
 } from "@propi/slack";
+import type { Locale } from "@propi/core/i18n";
 import { renderContext, type Log } from "./inbound.ts";
+import { createLocales } from "./locale.ts";
 import { NOTIFY_EVENT, type ServerNotification } from "./jobs.ts";
 import type { SlackGateway } from "./gateway.ts";
 import type { ServerLookup } from "./lookup.ts";
@@ -58,34 +60,59 @@ export interface RelayDeps {
   readonly log: Log;
 }
 
-const dm = (to: MemberId, body: SlackMessageBody): SlackDelivery => ({ target: { kind: "dm", to }, body });
+/**
+ * i18n S4d: the render contexts of one workspace. A DM is written in its recipient's language;
+ * channel posts and group DMs (several readers) in the workspace default.
+ */
+export interface RenderContexts {
+  readonly workspace: RenderContext;
+  member(id: MemberId): Promise<RenderContext>;
+}
 
-function serverNotification(n: ServerNotification, ctx: RenderContext): SlackDelivery {
+/** Builds the contexts of one workspace, rendering at most one context per language. */
+export async function renderContexts(d: Pick<RelayDeps, "rt" | "appUrl">, ws: WorkspaceId): Promise<RenderContexts> {
+  const locales = createLocales(d.rt.ports.directory);
+  const byLocale = new Map<Locale, Promise<RenderContext>>();
+  const inLocale = (l: Locale) => byLocale.get(l) ?? byLocale.set(l, renderContext(d, ws, l)).get(l)!;
+  const byMember = new Map<MemberId, Promise<RenderContext>>();
+  return {
+    workspace: await inLocale(await locales.workspace(ws)),
+    member: (id) => byMember.get(id) ?? byMember.set(id, locales.member(ws, id).then(inLocale)).get(id)!,
+  };
+}
+
+function serverNotification(n: ServerNotification, ctx: RenderContext): SlackMessageBody {
   switch (n.type) {
     case "reciprocity_review":
-      return dm(n.to, reciprocityMessage(n.pairs, n.period, ctx));
+      return reciprocityMessage(n.pairs, n.period, ctx);
     case "monthly_digest":
-      return dm(n.to, digestMessage({ month: n.month, team: n.team }, ctx));
+      return digestMessage({ month: n.month, team: n.team }, ctx);
     default:
-      return dm(n.to, notificationMessage(n, ctx));
+      return notificationMessage(n, ctx);
   }
 }
 
-/** The Slack messages one outbox event produces. */
-export async function slackDeliveriesFor(d: Pick<RelayDeps, "rt">, ev: OutboxEvent, ctx: RenderContext): Promise<SlackDelivery[]> {
+/** The Slack messages one outbox event produces, each in the language of whoever reads it. */
+export async function slackDeliveriesFor(d: Pick<RelayDeps, "rt">, ev: OutboxEvent, ctxs: RenderContexts): Promise<SlackDelivery[]> {
   const ws = ev.workspaceId;
   const data = ev.data as Record<string, unknown>;
   const event = { type: ev.type, ...data } as unknown as DomainEvent;
   const shop = () => asShop(d.rt.ports.reader.workspace(ws));
   const approvers = async () => (await d.rt.ports.directory.members(ws)).filter((r) => r.active && canApprove({ kind: "member", memberId: r.id, role: r.role })).map((r) => r.id);
+  const dm = async (to: MemberId, render: (ctx: RenderContext) => SlackMessageBody): Promise<SlackDelivery> => ({ target: { kind: "dm", to }, body: render(await ctxs.member(to)) });
+  const dms = (to: readonly MemberId[], render: (ctx: RenderContext) => SlackMessageBody) => Promise.all(to.map((m) => dm(m, render)));
+  const ctx = ctxs.workspace;
 
-  if (ev.type === NOTIFY_EVENT) return [serverNotification(data["notification"] as ServerNotification, ctx)];
+  if (ev.type === NOTIFY_EVENT) {
+    const n = data["notification"] as ServerNotification;
+    return [await dm(n.to, (c) => serverNotification(n, c))];
+  }
 
   switch (event.type) {
     case "gift.given":
     case "gift.rejected":
     case "adjustment.made":
-      return (await d.rt.notify.eventNotifications(ws, event)).map((n) => dm(n.to, notificationMessage(n, ctx)));
+      return Promise.all((await d.rt.notify.eventNotifications(ws, event)).map((n) => dm(n.to, (c) => notificationMessage(n, c))));
     case "redemption.created":
     case "redemption.approved":
     case "redemption.rejected":
@@ -93,11 +120,11 @@ export async function slackDeliveriesFor(d: Pick<RelayDeps, "rt">, ev: OutboxEve
     case "redemption.fulfilled": {
       const reward = event.rewardId === null ? null : await shop().reward(event.rewardId);
       const title = reward?.title ?? null;
-      const out = event.notify.map((to) => dm(to, redemptionMessage({ type: event.type, cost: event.cost, quantity: event.quantity, rewardTitle: title }, ctx)));
+      const out = await dms(event.notify, (c) => redemptionMessage({ type: event.type, cost: event.cost, quantity: event.quantity, rewardTitle: title }, c));
       if (event.type === "redemption.created") {
         const r = await shop().redemption(event.redemptionId);
         if (r?.state === "pending") {
-          for (const to of await approvers()) out.push(dm(to, redemptionApprovalMessage({ redemptionId: r.id, member: r.memberId, rewardTitle: title, cost: r.cost, quantity: redemptionQuantity(r) }, ctx)));
+          out.push(...(await dms(await approvers(), (c) => redemptionApprovalMessage({ redemptionId: r.id, member: r.memberId, rewardTitle: title, cost: r.cost, quantity: redemptionQuantity(r) }, c))));
         }
       }
       return out;
@@ -105,23 +132,22 @@ export async function slackDeliveriesFor(d: Pick<RelayDeps, "rt">, ev: OutboxEve
     case "quest.submitted": {
       if (event.state !== "pending") return [];
       const quest = await d.rt.engagement.quests.quest(ws, event.questId);
-      return (await approvers()).map((to) => dm(to, submissionApprovalMessage({ submissionId: event.submissionId, member: event.memberId, questTitle: quest?.title ?? null }, ctx)));
+      return dms(await approvers(), (c) => submissionApprovalMessage({ submissionId: event.submissionId, member: event.memberId, questTitle: quest?.title ?? null }, c));
     }
     case "quest.approved":
     case "quest.rejected": {
       const quest = await d.rt.engagement.quests.quest(ws, event.questId);
-      return [dm(event.memberId, questMessage(event.type === "quest.approved" ? { type: event.type, amount: event.amount } : { type: event.type }, quest?.title ?? null, ctx))];
+      return [await dm(event.memberId, (c) => questMessage(event.type === "quest.approved" ? { type: event.type, amount: event.amount } : { type: event.type }, quest?.title ?? null, c))];
     }
     case "collab.completed":
-      return event.notify.map((to) => dm(to, collabMessage({ type: event.type }, ctx)));
+      return dms(event.notify, (c) => collabMessage({ type: event.type }, c));
     case "collab.refunded":
-      return event.notify.map((to) => dm(to, collabMessage({ type: event.type, total: event.total }, ctx)));
+      return dms(event.notify, (c) => collabMessage({ type: event.type, total: event.total }, c));
     case "rule.awarded":
       return event.announceChannel === null ? [] : [{ target: { kind: "channel", channel: event.announceChannel }, body: ruleAwardMessage(event, ctx) }];
     case "milestone.celebrated": {
-      const body = celebrationMessage(event, ctx);
-      if (event.post === "channel" && event.channelId !== null) return [{ target: { kind: "channel", channel: event.channelId }, body }];
-      if (event.post === "dm") return [dm(event.memberId, body)];
+      if (event.post === "channel" && event.channelId !== null) return [{ target: { kind: "channel", channel: event.channelId }, body: celebrationMessage(event, ctx) }];
+      if (event.post === "dm") return [await dm(event.memberId, (c) => celebrationMessage(event, c))];
       return [];
     }
     case "pairing.round":
@@ -178,8 +204,8 @@ export const QUEST_CONSUMER = "quest-triggers";
 /** One relay pass over every workspace's new events. Returns what it did, for logs and tests. */
 export async function relayOnce(d: RelayDeps, opts: { readonly limit?: number } = {}): Promise<RelayPass> {
   const limit = opts.limit ?? 20;
-  const contexts = new Map<WorkspaceId, RenderContext>();
-  const ctxFor = async (ws: WorkspaceId) => contexts.get(ws) ?? contexts.set(ws, await renderContext(d, ws)).get(ws)!;
+  const contexts = new Map<WorkspaceId, RenderContexts>();
+  const ctxFor = async (ws: WorkspaceId) => contexts.get(ws) ?? contexts.set(ws, await renderContexts(d, ws)).get(ws)!;
 
   const slack = await d.rt.api.outbox.claimEvents(
     SLACK_CONSUMER,
