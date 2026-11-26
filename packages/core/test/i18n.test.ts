@@ -42,6 +42,7 @@ describe("S3 signed-out pages: cookie, then Accept-Language, then en", () => {
     expect(localeFromAcceptLanguage("en;q=0.4, es-MX;q=0.9")).toBe("es");
     expect(localeFromAcceptLanguage("fr-FR, es;q=0.8, en;q=0.5")).toBe("es");
     expect(localeFromAcceptLanguage("es;q=0, en")).toBe("en");
+    expect(localeFromAcceptLanguage("es;Q=0.1, en;q=0.9")).toBe("en");
   });
 
   test("nothing usable means en", () => {

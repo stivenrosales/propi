@@ -39,7 +39,7 @@ export function localeFromAcceptLanguage(header: string | null | undefined): Loc
     const [tag = "", ...params] = part.trim().split(";");
     const locale = localeFromTag(tag);
     if (locale === null) continue;
-    const qParam = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+    const qParam = params.map((p) => p.trim()).find((p) => p.toLowerCase().startsWith("q="));
     const q = qParam === undefined ? 1 : Number(qParam.slice(2));
     if (!Number.isFinite(q) || q <= 0) continue;
     if (best === null || q > best.q || (q === best.q && at < best.at)) best = { locale, q, at };

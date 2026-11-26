@@ -29,7 +29,8 @@ export async function saveWorkspaceSettingsAction(form: FormData) {
   const p = propi();
   const parsed = parseWorkspaceSettings(form, await p.ports.directory.settings(v.ws));
   if (!parsed.ok) finish("/admin/settings", parsed, "", L);
-  await p.admin.updateSettings(v.ws, () => parsed.value);
+  // Keep the language from the stored settings: it is saved by its own form (i18n S4b).
+  await p.admin.updateSettings(v.ws, (current) => ({ ...parsed.value, language: current.language }));
   finish("/admin/settings", { ok: true }, t("workspace"), L);
 }
 

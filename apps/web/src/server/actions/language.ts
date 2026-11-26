@@ -26,7 +26,8 @@ export async function setLocaleAction(form: FormData) {
   if (!isLocale(locale)) return;
   (await cookies()).set(LOCALE_COOKIE, locale, { path: "/", maxAge: YEAR_S, sameSite: "lax", secure: (process.env.APP_URL ?? "").startsWith("https://") });
   const viewer = await currentViewer().catch(() => null);
-  if (viewer !== null) await propi().admin.setMemberLanguage(viewer.ws, viewer.memberId, locale);
+  // The cookie already switched the page; saving the member choice is best effort.
+  if (viewer !== null) await propi().admin.setMemberLanguage(viewer.ws, viewer.memberId, locale).catch(() => undefined);
 }
 
 /** S4b: the workspace default language (admin Settings). */
