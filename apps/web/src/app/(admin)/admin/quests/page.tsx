@@ -12,7 +12,7 @@ const day = (ms: number | null) => (ms === null ? "" : new Date(ms).toISOString(
 
 function QuestForm({ q }: { q?: Quest }) {
   return (
-    <form action={defineQuestAction} className="grid gap-3 @lg:grid-cols-2">
+    <form action={defineQuestAction} className="fields grid gap-3 @lg:grid-cols-2">
       <KeyInput value={formKey()} />
       <input type="hidden" name="questId" value={q?.id ?? ""} />
       <Field label="Title" className="@lg:col-span-2"><Input name="title" defaultValue={q?.title} required /></Field>

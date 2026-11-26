@@ -27,7 +27,7 @@ function RuleForm({ r, values }: { r?: AwardRule; values: readonly { id: string;
   const c = r?.criterion;
   const n = c === undefined ? 1 : "n" in c ? c.n : "k" in c ? c.k : "periods" in c ? c.periods : 1;
   return (
-    <form action={defineRuleAction} className="grid gap-3 @lg:grid-cols-2">
+    <form action={defineRuleAction} className="fields grid gap-3 @lg:grid-cols-2">
       <KeyInput value={formKey()} />
       <input type="hidden" name="ruleId" value={r?.id ?? ""} />
       <Field label="Name" className="@lg:col-span-2"><Input name="name" defaultValue={r?.name} required /></Field>

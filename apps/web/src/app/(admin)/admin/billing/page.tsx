@@ -28,7 +28,7 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
         <div className="grid gap-5 xl:grid-cols-2">
           <Card>
             <CardTitle action={<Badge tone={plan.plan === "free" ? "muted" : "mint"}>{PLAN_LABEL[plan.plan]}</Badge>}>Your plan</CardTitle>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={sub !== null && plan.plan === "pro" ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
               <Stat label="Active members" value={plan.activeMembers} sub={plan.limit === null ? "No member limit" : `Free plan limit: ${plan.limit}`} tone={plan.overLimit ? "coral" : "white"} />
               {sub !== null && plan.plan === "pro" ? (
                 <Stat label={sub.cancelAtPeriodEnd ? "Ends on" : "Renews on"} value={sub.currentPeriodEnd === null ? "—" : date(sub.currentPeriodEnd)} sub={sub.seats === null ? undefined : `${sub.seats} paid seats`} />

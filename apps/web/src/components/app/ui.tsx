@@ -41,27 +41,42 @@ export function LinkButton({ tone = "cream", className, ...props }: ComponentPro
   return <a className={cx("lift inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink px-4 font-display text-sm font-extrabold shadow-sticker", toneClass[tone], className)} {...props} />;
 }
 
+/**
+ * A labelled control. Inside a `fields` grid (globals.css) it spans a label row and a control row of
+ * the parent, so the labels of one row share a track and the controls start on one line even when a
+ * label wraps or only one field has a hint. Anywhere else it is a plain stack.
+ */
 export function Field({ label, hint, children, className }: { label: string; hint?: string; children: ReactNode; className?: string }) {
   return (
-    <label className={cx("flex flex-col gap-1.5 text-sm", className)}>
-      <span className="font-semibold text-ink">{label}</span>
-      {children}
-      {hint ? <span className="text-xs text-ink-soft">{hint}</span> : null}
+    <label className={cx("field grid content-start gap-y-1.5 text-sm", className)}>
+      <span className="self-end font-semibold text-ink">{label}</span>
+      <span className="flex min-w-0 flex-col gap-1.5">
+        {children}
+        {hint ? <span className="text-xs text-ink-soft">{hint}</span> : null}
+      </span>
     </label>
   );
 }
 
 const inputClass = "min-h-10 w-full rounded-xl border border-line bg-cream/60 px-3 py-2 text-ink placeholder:text-ink-soft/70 focus:border-ink focus:bg-white focus:outline-none";
 
-export const Input = ({ className, ...p }: ComponentProps<"input">) => <input className={cx(inputClass, className)} {...p} />;
-export const Textarea = ({ className, ...p }: ComponentProps<"textarea">) => <textarea className={cx(inputClass, "min-h-20", className)} {...p} />;
-export const Select = ({ className, ...p }: ComponentProps<"select">) => <select className={cx(inputClass, className)} {...p} />;
+/** Controls fill their cell unless the caller sets a width (`w-24`, `md:w-40`); cx does not group widths. */
+const control = (className?: string) => cx(/(^|\s)([\w-]+:)*w-/.test(className ?? "") ? inputClass.replace("w-full ", "") : inputClass, className);
 
-export function Checkbox({ label, ...p }: ComponentProps<"input"> & { label: string }) {
+/** Number inputs get the numeric keypad and no spinner (globals.css), the same on every screen. */
+export const Input = ({ className, ...p }: ComponentProps<"input">) => (
+  <input inputMode={p.type === "number" ? "numeric" : undefined} className={control(className)} {...p} />
+);
+export const Textarea = ({ className, ...p }: ComponentProps<"textarea">) => <textarea className={control(cx("min-h-20", className))} {...p} />;
+/** The one select style: brand chevron and room for it on the right (`.select` in globals.css). */
+export const Select = ({ className, ...p }: ComponentProps<"select">) => <select className={control(cx("select cursor-pointer", className))} {...p} />;
+
+/** A checkbox whose label never wraps under the box; `disabled` reads as locked, not missing. */
+export function Checkbox({ label, className, ...p }: ComponentProps<"input"> & { label: string }) {
   return (
-    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
-      <input type="checkbox" className="size-4 rounded accent-coral" {...p} />
-      {label}
+    <label className={cx("inline-flex items-start gap-2 text-sm leading-5 font-medium text-ink has-disabled:cursor-not-allowed has-disabled:text-ink-soft", className)}>
+      <input type="checkbox" className="mt-0.5 size-4 shrink-0 rounded accent-coral disabled:cursor-not-allowed" {...p} />
+      <span>{label}</span>
     </label>
   );
 }

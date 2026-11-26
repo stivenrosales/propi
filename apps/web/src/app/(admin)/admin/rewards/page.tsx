@@ -102,11 +102,11 @@ export default async function Rewards({ searchParams }: { searchParams: Promise<
               {r.status !== "archived" ? (
                 <details className="mt-3">
                   <summary className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-coral-ink"><Pencil className="size-3.5" /> Edit</summary>
-                  <form action={updateRewardAction} className="mt-3 grid gap-3 @lg:grid-cols-2">
+                  <form action={updateRewardAction} className="fields mt-3 grid gap-3 @lg:grid-cols-2">
                     <KeyInput value={formKey()} />
                     <input type="hidden" name="rewardId" value={r.id} />
                     <RewardFields r={r} currency={currency} />
-                    <Button size="sm" className="justify-self-start">Save changes</Button>
+                    <Button size="sm" className="justify-self-start @lg:col-span-2">Save changes</Button>
                   </form>
                 </details>
               ) : null}
@@ -117,12 +117,12 @@ export default async function Rewards({ searchParams }: { searchParams: Promise<
         <div className="grid content-start gap-5">
           <Card>
             <CardTitle><span className="inline-flex items-center gap-2"><Plus className="size-5" /> New reward</span></CardTitle>
-            <form action={createRewardAction} className="grid gap-3 @lg:grid-cols-2">
+            <form action={createRewardAction} className="fields grid gap-3 @lg:grid-cols-2">
               <KeyInput value={formKey()} />
               <RewardFields currency={currency} />
               <Field label="Stock" hint="Empty for unlimited"><Input name="stock" type="number" min={0} /></Field>
               <Field label="Variants" hint="One per line, name: stock" className="@lg:col-span-2"><Textarea name="variants" rows={2} placeholder={"S: 4\nM: 6"} /></Field>
-              <Checkbox name="giftCard" label="Gift card (fulfilled by the provider)" />
+              <Checkbox name="giftCard" label="Gift card (fulfilled by the provider)" className="@lg:col-span-2" />
               <Button className="justify-self-start @lg:col-span-2">Create draft</Button>
             </form>
           </Card>
@@ -158,13 +158,13 @@ export default async function Rewards({ searchParams }: { searchParams: Promise<
                 </li>
               ))}
             </ul>
-            <form action={createCollabAction} className="grid gap-3 @lg:grid-cols-2">
+            <form action={createCollabAction} className="fields grid gap-3 @lg:grid-cols-2">
               <KeyInput value={formKey()} />
               <Field label="Title" className="@lg:col-span-2"><Input name="title" required /></Field>
               <Field label="Description" className="@lg:col-span-2"><Textarea name="description" rows={2} /></Field>
               <Field label="Goal (units)"><Input name="goal" type="number" min={1} required /></Field>
               <Field label="Deadline"><Input name="deadline" type="date" /></Field>
-              <Checkbox name="autoApprove" label="Approve automatically when funded" />
+              <Checkbox name="autoApprove" label="Approve automatically when funded" className="@lg:col-span-2" />
               <Button tone="cream" className="justify-self-start @lg:col-span-2">Start group reward</Button>
             </form>
           </Card>

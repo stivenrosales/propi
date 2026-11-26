@@ -40,7 +40,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
           <CardTitle>Currency and giving</CardTitle>
-          <form action={saveWorkspaceSettingsAction} className="grid gap-4 sm:grid-cols-2">
+          <form action={saveWorkspaceSettingsAction} className="fields grid gap-4 sm:grid-cols-2">
             <Field label="Gift emoji" hint="Worth 1 each, e.g. :taco:">
               <Input name="primaryEmoji" defaultValue={s.currency.primaryEmoji} required />
             </Field>
@@ -53,7 +53,13 @@ export default async function Settings({ searchParams }: { searchParams: Promise
             <Field label="Plural name">
               <Input name="plural" defaultValue={s.currency.plural} required />
             </Field>
-            <Field label="Timezone" hint="IANA name. Days, weeks and months use it.">
+            <Field label="Daily allowance" hint="What each member can give per day">
+              <Input name="defaultDailyAllowance" type="number" min={1} defaultValue={s.defaultDailyAllowance} required />
+            </Field>
+            <Field label="Admin allowance" hint="What each admin can give per day">
+              <Input name="adminDailyAllowance" type="number" min={1} defaultValue={s.adminDailyAllowance} required />
+            </Field>
+            <Field label="Timezone" hint="IANA name. Days, weeks and months use it." className="sm:col-span-2">
               <Input name="timezone" defaultValue={s.timezone} required list="tz-list" />
             </Field>
             <datalist id="tz-list">
@@ -61,14 +67,6 @@ export default async function Settings({ searchParams }: { searchParams: Promise
                 <option key={tz} value={tz} />
               ))}
             </datalist>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Daily allowance">
-                <Input name="defaultDailyAllowance" type="number" min={1} defaultValue={s.defaultDailyAllowance} required />
-              </Field>
-              <Field label="Admin allowance">
-                <Input name="adminDailyAllowance" type="number" min={1} defaultValue={s.adminDailyAllowance} required />
-              </Field>
-            </div>
             <fieldset className="grid gap-2 sm:col-span-2">
               <legend className="mb-1 text-sm font-semibold">Giving</legend>
               <Checkbox name="reactionsEnabled" label="Reactions give props" defaultChecked={s.reactionsEnabled} />
@@ -84,7 +82,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
         <div className="grid gap-5">
           <Card>
             <CardTitle>Boards, privacy and insights</CardTitle>
-            <form action={saveBoardSettingsAction} className="grid gap-4 sm:grid-cols-2">
+            <form action={saveBoardSettingsAction} className="fields grid gap-4 sm:grid-cols-2">
               <fieldset className="grid gap-2 sm:col-span-2">
                 <Checkbox name="showPrivateGifts" label="Show private-channel gifts in feeds and profiles" defaultChecked={insights.showPrivateGifts} />
                 <Checkbox name="giverMode" label="Giver mode: members only see the given board" defaultChecked={insights.giverMode} />
@@ -115,10 +113,9 @@ export default async function Settings({ searchParams }: { searchParams: Promise
 
           <Card>
             <CardTitle>Shop</CardTitle>
-            <form action={saveShopSettingsAction} className="grid gap-4 sm:grid-cols-2">
+            <form action={saveShopSettingsAction} className="fields grid gap-4 sm:grid-cols-2">
               <KeyInput value={formKey()} />
-              <Checkbox name="autoApprove" label="Approve redemptions automatically" defaultChecked={shop.autoApprove} />
-              <span />
+              <Checkbox name="autoApprove" label="Approve redemptions automatically" defaultChecked={shop.autoApprove} className="sm:col-span-2" />
               <Field label="Monthly budget (cents)" hint="Empty for no budget">
                 <Input name="budgetMinor" type="number" min={0} defaultValue={shop.monthlyBudget?.minor ?? ""} />
               </Field>
@@ -132,7 +129,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
 
         <Card>
           <CardTitle>Modules</CardTitle>
-          <form action={saveModulesAction} className="grid gap-4 sm:grid-cols-2">
+          <form action={saveModulesAction} className="fields grid gap-4 sm:grid-cols-2">
             <KeyInput value={formKey()} />
             <fieldset className="grid gap-2 sm:col-span-2">
               <Checkbox name="stickers" label="Stickers" defaultChecked={stickers.enabled} />
@@ -151,7 +148,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
             <Field label="Conversation prompts" hint="One per line" className="sm:col-span-2">
               <Textarea name="prompts" defaultValue={pair.prompts.join("\n")} rows={3} />
             </Field>
-            <Field label="Celebration channel id">
+            <Field label="Celebration channel" hint="Slack channel ID, e.g. C0123456">
               <Input name="celebrationChannel" defaultValue={ms.channelId ?? ""} placeholder="C0123456" />
             </Field>
             <Field label="Celebration time">

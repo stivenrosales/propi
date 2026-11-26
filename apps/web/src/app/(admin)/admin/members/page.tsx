@@ -1,3 +1,4 @@
+import { Lock } from "lucide-react";
 import { Avatar, Badge, Button, Card, Checkbox, Flash, Input, PageHeader, Select, Table, Td, Units } from "@/components/app/ui";
 import { saveMemberAction } from "@/server/actions/admin";
 import { requireViewer } from "@/server/auth";
@@ -6,6 +7,8 @@ import { canChangeRoleOf } from "@/server/roles";
 import { workspaceView } from "@/server/views";
 
 export const metadata = { title: "Members" };
+
+const ROLE_LABEL = { member: "Member", approver: "Approver", admin: "Admin" } as const;
 
 // S5-S7 roles and activation, S25 per-member allowance, S80 hide from boards.
 export default async function Members({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -38,10 +41,7 @@ export default async function Members({ searchParams }: { searchParams: Promise<
                   </form>
                   <div className="flex items-center gap-3">
                     <Avatar id={m.id} label={w.label(m.id)} src={w.avatar(m.id)} size="sm" />
-                    <div>
-                      <p className="font-semibold">{w.label(m.id)}</p>
-                      <p className="text-xs text-ink-soft">{m.id}</p>
-                    </div>
+                    <p className="font-semibold whitespace-nowrap">{w.label(m.id)}</p>
                   </div>
                 </Td>
                 <Td className="text-xs whitespace-nowrap">
@@ -52,10 +52,13 @@ export default async function Members({ searchParams }: { searchParams: Promise<
                   {self ? (
                     <>
                       <input type="hidden" form={form} name="role" value={m.role} />
-                      <Badge tone="ink">{m.role} (you)</Badge>
+                      <span title="You cannot change your own role" className="inline-flex min-h-9 w-36 items-center gap-1.5 rounded-xl border border-dashed border-line px-3 text-sm font-semibold text-ink-soft">
+                        <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+                        {ROLE_LABEL[m.role]} (you)
+                      </span>
                     </>
                   ) : (
-                    <Select form={form} name="role" defaultValue={m.role} aria-label={`Role of ${w.label(m.id)}`} className="min-h-9 py-1 text-sm">
+                    <Select form={form} name="role" defaultValue={m.role} aria-label={`Role of ${w.label(m.id)}`} className="min-h-9 w-36 py-1 text-sm">
                       <option value="member">Member</option>
                       <option value="approver">Approver</option>
                       <option value="admin">Admin</option>
@@ -67,8 +70,17 @@ export default async function Members({ searchParams }: { searchParams: Promise<
                 </Td>
                 <Td>
                   <div className="flex flex-col gap-1">
-                    {self ? <input type="hidden" form={form} name="active" value="on" /> : <Checkbox form={form} name="active" label="Active" defaultChecked={m.active} />}
-                    <Checkbox form={form} name="excluded" label="Hide from boards" defaultChecked={excluded.has(m.id)} />
+                    {self ? (
+                      <>
+                        <input type="hidden" form={form} name="active" value="on" />
+                        <span title="You cannot deactivate yourself" className="flex">
+                          <Checkbox label="Active" checked disabled readOnly className="whitespace-nowrap" />
+                        </span>
+                      </>
+                    ) : (
+                      <Checkbox form={form} name="active" label="Active" defaultChecked={m.active} className="whitespace-nowrap" />
+                    )}
+                    <Checkbox form={form} name="excluded" label="Hide from boards" defaultChecked={excluded.has(m.id)} className="whitespace-nowrap" />
                   </div>
                 </Td>
                 <Td>

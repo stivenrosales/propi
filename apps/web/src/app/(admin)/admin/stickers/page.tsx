@@ -67,7 +67,7 @@ export default async function Stickers({ searchParams }: { searchParams: Promise
 
 function StickerForm({ s }: { s?: { id: string; name: string; image: string | null; receivers: number | "channel"; unitsPerReceiver: number; monthlyQuota: number; active: boolean } }) {
   return (
-    <form action={defineStickerAction} className="mt-3 grid gap-3 sm:grid-cols-2">
+    <form action={defineStickerAction} className="fields mt-3 grid gap-3 sm:grid-cols-2">
       <KeyInput value={formKey()} />
       <input type="hidden" name="stickerId" value={s?.id ?? ""} />
       <Field label="Name"><Input name="name" defaultValue={s?.name} required /></Field>
