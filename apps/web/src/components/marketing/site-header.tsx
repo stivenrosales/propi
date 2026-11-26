@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { site } from "@/content/site";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { GitHubIcon } from "@/components/ui/primitives";
 import { sessionSecret } from "@/server/env";
 import { readSession, SESSION_COOKIE } from "@/server/session";
@@ -54,6 +55,7 @@ export async function SiteHeader() {
           </ul>
         </nav>
         <div className="flex shrink-0 items-center gap-2">
+          <LocaleSwitcher />
           <a
             href={site.github}
             aria-label="Propi on GitHub"

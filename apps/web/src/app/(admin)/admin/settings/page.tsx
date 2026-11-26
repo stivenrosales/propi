@@ -1,7 +1,10 @@
 import { DEFAULT_MILESTONES } from "@propi/core/milestones";
 import { DEFAULT_PAIRING } from "@propi/core/pairing";
 import { Button, Card, CardTitle, Checkbox, Field, Flash, Input, KeyInput, LinkButton, PageHeader, Select, Textarea } from "@/components/app/ui";
+import { getLocale } from "@/i18n/locale";
+import { LANGUAGE_NAMES, language } from "@/i18n/language.messages";
 import { saveBoardSettingsAction, saveModulesAction, saveShopSettingsAction, saveWorkspaceSettingsAction } from "@/server/actions/admin";
+import { saveWorkspaceLanguageAction } from "@/server/actions/language";
 import { requireViewer } from "@/server/auth";
 import { formKey } from "@/server/command";
 import { sessionSecret } from "@/server/env";
@@ -27,6 +30,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
     p.engagement.pairing.config(viewer.ws),
     p.engagement.milestones.config(viewer.ws),
   ]);
+  const lt = language.t(await getLocale());
   const pair = pairing ?? DEFAULT_PAIRING;
   const ms = milestones ?? DEFAULT_MILESTONES;
   const tv = `${process.env.APP_URL ?? ""}/tv?display=${encodeURIComponent(tvToken(sessionSecret(), viewer.ws))}`;
@@ -80,6 +84,19 @@ export default async function Settings({ searchParams }: { searchParams: Promise
         </Card>
 
         <div className="grid gap-5">
+          <Card>
+            <CardTitle>{lt("settings.title")}</CardTitle>
+            <form action={saveWorkspaceLanguageAction} className="fields grid gap-4 sm:grid-cols-2">
+              <Field label={lt("settings.field")} hint={lt("settings.hint")} className="sm:col-span-2">
+                <Select name="language" defaultValue={s.language ?? "en"}>
+                  <option value="en" lang="en">{LANGUAGE_NAMES.en}</option>
+                  <option value="es" lang="es">{LANGUAGE_NAMES.es}</option>
+                </Select>
+              </Field>
+              <Button className="justify-self-start">{lt("settings.save")}</Button>
+            </form>
+          </Card>
+
           <Card>
             <CardTitle>Boards, privacy and insights</CardTitle>
             <form action={saveBoardSettingsAction} className="fields grid gap-4 sm:grid-cols-2">

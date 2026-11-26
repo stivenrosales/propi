@@ -23,7 +23,7 @@ import {
 import type { SlackGateway } from "./gateway.ts";
 import type { ServerLookup } from "./lookup.ts";
 import type { Runtime } from "./runtime.ts";
-import { profileOf, type SlackUserObject } from "./slack-api.ts";
+import { profileOf, slackLocaleOf, type SlackUserObject } from "./slack-api.ts";
 
 export type Log = (msg: string, data?: Record<string, unknown>) => void;
 
@@ -79,7 +79,7 @@ export async function handleEvent(d: InboundDeps, body: SlackEnvelope): Promise<
     const ws = await d.lookup.workspace(body.team_id);
     const u = (body.event as { user?: SlackUserObject & { id?: string; is_bot?: boolean; deleted?: boolean } }).user;
     if (ws !== null && u?.id !== undefined) {
-      await d.lookup.profile(ws, body.team_id, { id: u.id, isBot: u.is_bot === true || u.id === "USLACKBOT", deleted: u.deleted === true, ...profileOf(u) });
+      await d.lookup.profile(ws, body.team_id, { id: u.id, isBot: u.is_bot === true || u.id === "USLACKBOT", deleted: u.deleted === true, ...profileOf(u), ...slackLocaleOf(u) });
     }
     return { handled: "lifecycle", type };
   }

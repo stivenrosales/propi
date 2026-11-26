@@ -11,12 +11,16 @@ export interface SlackUserInfo {
   /** S6: the profile the member shows as; absent when Slack sent none. */
   readonly displayName?: string | null;
   readonly avatarUrl?: string | null;
+  /** i18n S3: the user's Slack locale (e.g. "es-LA"); absent when Slack sent none. */
+  readonly slackLocale?: string;
 }
 
 /** The Slack user fields profileOf reads (users.info, users.list, user_change, team_join). */
 export interface SlackUserObject {
   readonly name?: string;
   readonly real_name?: string;
+  /** Present when the call asked for include_locale. */
+  readonly locale?: string;
   readonly profile?: { readonly display_name?: string; readonly real_name?: string; readonly image_192?: string; readonly image_72?: string };
 }
 
@@ -30,6 +34,12 @@ export function profileOf(u: SlackUserObject): { readonly displayName: string | 
     avatarUrl: nonEmpty(p.image_192) ?? nonEmpty(p.image_72),
   };
 }
+
+/** i18n S3: the Slack locale, only when Slack sent one (users.info / users.list with include_locale). */
+export const slackLocaleOf = (u: SlackUserObject): { readonly slackLocale?: string } => {
+  const l = nonEmpty(u.locale);
+  return l === null ? {} : { slackLocale: l };
+};
 
 const isBotUser = (id: string, u: { readonly is_bot?: boolean }) => u.is_bot === true || id === "USLACKBOT";
 
@@ -68,10 +78,10 @@ export function webSlackApi(client: WebClient): SlackApi {
     },
     async userInfo(user) {
       try {
-        const r = await client.users.info({ user });
+        const r = await client.users.info({ user, include_locale: true });
         const u = r.user;
         if (u === undefined) return null;
-        return { id: user, isBot: isBotUser(user, u), deleted: u.deleted === true, ...profileOf(u) };
+        return { id: user, isBot: isBotUser(user, u), deleted: u.deleted === true, ...profileOf(u), ...slackLocaleOf(u) };
       } catch (err) {
         if (isPermanentSlackError(err)) return null;
         throw err;
@@ -81,10 +91,10 @@ export function webSlackApi(client: WebClient): SlackApi {
       const out: SlackUserInfo[] = [];
       let cursor: string | undefined;
       do {
-        const r = await client.users.list({ limit: 200, ...(cursor === undefined ? {} : { cursor }) });
+        const r = await client.users.list({ limit: 200, include_locale: true, ...(cursor === undefined ? {} : { cursor }) });
         for (const u of r.members ?? []) {
           if (u.id === undefined) continue;
-          out.push({ id: u.id, isBot: isBotUser(u.id, u), deleted: u.deleted === true, ...profileOf(u) });
+          out.push({ id: u.id, isBot: isBotUser(u.id, u), deleted: u.deleted === true, ...profileOf(u), ...slackLocaleOf(u) });
         }
         cursor = r.response_metadata?.next_cursor || undefined;
       } while (cursor !== undefined);

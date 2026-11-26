@@ -1,3 +1,4 @@
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { SlackIcon } from "@/components/ui/primitives";
 import { site } from "@/content/site";
 import { memberLabel } from "@/lib/format";
@@ -99,7 +100,10 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
             </form>
           ) : null}
         </div>
-        <p className="mt-6 text-center text-sm text-ink-soft">
+        <div className="mt-6 flex justify-center">
+          <LocaleSwitcher />
+        </div>
+        <p className="mt-4 text-center text-sm text-ink-soft">
           By signing in you agree to the{" "}
           <a href={site.terms} className="font-bold text-ink underline underline-offset-4">
             Terms

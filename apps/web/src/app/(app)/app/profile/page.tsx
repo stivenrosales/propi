@@ -2,6 +2,9 @@ import { Lock } from "lucide-react";
 import { NOTIFICATION_TYPES, wants } from "@propi/core/notify";
 import { unlockedAvatars } from "@propi/core/levels";
 import { Avatar, Badge, Button, Card, CardTitle, Field, Flash, Input, KeyInput, PageHeader, Select } from "@/components/app/ui";
+import { getLocale } from "@/i18n/locale";
+import { LANGUAGE_NAMES, language } from "@/i18n/language.messages";
+import { setMemberLanguageAction } from "@/server/actions/language";
 import { chooseAvatarAction, pairingOptInAction, setMilestonesAction, setPreferenceAction } from "@/server/actions/member";
 import { requireViewer } from "@/server/auth";
 import { formKey } from "@/server/command";
@@ -27,14 +30,17 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
   const sp = await searchParams;
   const p = propi();
   const e = p.engagement;
-  const [lvl, w, avatar, milestones, optedIn, prefs] = await Promise.all([
+  const [lvl, w, avatar, milestones, optedIn, prefs, locale, record] = await Promise.all([
     memberLevel(viewer.ws, viewer.memberId),
     workspaceView(viewer.ws),
     e.levels.avatar(viewer.ws, viewer.memberId),
     e.milestones.profile(viewer.ws, viewer.memberId),
     e.pairing.optedIn(viewer.ws),
     p.insights.source.preferences(viewer.ws),
+    getLocale(),
+    p.ports.directory.member(viewer.ws, viewer.memberId),
   ]);
+  const lt = language.t(locale);
   const { level, config } = lvl;
   const unlocked = new Set(unlockedAvatars(level.level, config.avatars).map((a) => a.id));
   const mine = prefs.get(viewer.memberId);
@@ -135,6 +141,20 @@ export default async function Profile({ searchParams }: { searchParams: Promise<
               <KeyInput value={formKey()} />
               <input type="hidden" name="optedIn" value={paired ? "false" : "true"} />
               <Button tone={paired ? "cream" : "mint"} size="sm">{paired ? "Opt out" : "Opt in"}</Button>
+            </form>
+          </Card>
+
+          <Card>
+            <CardTitle>{lt("profile.title")}</CardTitle>
+            <form action={setMemberLanguageAction} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <Field label={lt("profile.field")} hint={lt("profile.hint")}>
+                <Select name="language" defaultValue={record?.language ?? "auto"}>
+                  <option value="auto">{lt("profile.auto")}</option>
+                  <option value="es" lang="es">{LANGUAGE_NAMES.es}</option>
+                  <option value="en" lang="en">{LANGUAGE_NAMES.en}</option>
+                </Select>
+              </Field>
+              <Button className="justify-self-start">{lt("profile.save")}</Button>
             </form>
           </Card>
 

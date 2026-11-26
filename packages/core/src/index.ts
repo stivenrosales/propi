@@ -12,6 +12,8 @@ export * from "./workspace/time.ts";
 
 export * from "./members/members.ts";
 
+export * from "./i18n/locale.ts";
+
 export * from "./values/index.ts";
 
 export * from "./ledger/entries.ts";

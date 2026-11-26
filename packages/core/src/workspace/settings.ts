@@ -1,6 +1,7 @@
 // Workspace settings (S1-S3 plus the toggles giving reads).
 import type { PosInt } from "../shared/types.ts";
 import type { Currency } from "./currency.ts";
+import type { Locale } from "../i18n/locale.ts";
 
 export interface WorkspaceSettings {
   readonly timezone: string; // IANA (S3)
@@ -12,6 +13,8 @@ export interface WorkspaceSettings {
   readonly privateChannelsAllowed: boolean; // S16
   readonly storeMessageText: boolean; // S14, S70
   readonly botsMayGive: boolean; // S8
+  /** i18n S3, S4b: the workspace default language. Absent (settings saved before i18n) reads as en. */
+  readonly language?: Locale;
 }
 
 export function defaultSettings(over: Partial<WorkspaceSettings> = {}): WorkspaceSettings {

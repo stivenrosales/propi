@@ -18,6 +18,7 @@
     "./privacy": "./src/privacy/index.ts",
     "./values": "./src/values/index.ts",
     "./shop": "./src/shop/index.ts",
-    "./migration": "./src/migration/index.ts"
+    "./migration": "./src/migration/index.ts",
+    "./i18n": "./src/i18n/index.ts"
   }
 }

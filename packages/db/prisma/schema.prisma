@@ -63,6 +63,10 @@ model Member {
   /// S6: copied from the member's Slack profile.
   displayName        String?  @map("display_name")
   avatarUrl          String?  @map("avatar_url")
+  /// i18n S4c: the member's own language ("en" | "es"); null = automatic.
+  language           String?
+  /// i18n S3: the Slack locale (users.info `locale`), e.g. "es-LA".
+  slackLocale        String?  @map("slack_locale")
 
   workspace   Workspace                @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   identities  Identity[]

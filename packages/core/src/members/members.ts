@@ -1,6 +1,7 @@
 // S5-S8: roles, activation, bots.
 import type { Actor, DomainError, MemberId, PosInt, Role } from "../shared/types.ts";
 import type { WorkspaceSettings } from "../workspace/settings.ts";
+import type { Locale } from "../i18n/locale.ts";
 
 export interface MemberRecord {
   readonly id: MemberId;
@@ -10,12 +11,18 @@ export interface MemberRecord {
   /** Presentation only (S6): the chat profile's display name and avatar, when known. */
   readonly displayName?: string | null;
   readonly avatarUrl?: string | null;
+  /** i18n S4c: the member's own language; absent means "auto" (Slack locale, then workspace default). */
+  readonly language?: Locale;
+  /** i18n S3: the member's Slack locale as Slack reports it (users.info `locale`, e.g. "es-LA"). */
+  readonly slackLocale?: string | null;
 }
 
 /** S6: the chat profile a member shows as. */
 export interface MemberProfile {
   readonly displayName: string | null;
   readonly avatarUrl: string | null;
+  /** i18n S3: the Slack locale; left out (undefined) keeps the stored one. */
+  readonly slackLocale?: string | null;
 }
 
 /** S5: whoever installs the app becomes the first admin. */

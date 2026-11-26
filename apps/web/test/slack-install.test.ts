@@ -12,12 +12,12 @@ const SECRET = "test-secret-0123456789abcdef0123456789";
 const NOW = Date.UTC(2026, 10, 25, 15);
 const cfg = { clientId: "123.456", clientSecret: "shh", redirectUri: "https://propihq.com/slack/oauth/callback" };
 
-/** A fake Slack: oauth.v2.access answers `access`, users.info answers `tz`. Records every call. */
-function fakeSlack(access: Record<string, unknown>, tz: string | null = "America/Bogota") {
+/** A fake Slack: oauth.v2.access answers `access`, users.info answers `tz` (and `locale`). Records every call. */
+function fakeSlack(access: Record<string, unknown>, tz: string | null = "America/Bogota", locale: string | null = null) {
   const calls: { url: string; body: string | null; auth: string | null }[] = [];
   const fetchImpl = async (url: string, init?: RequestInit) => {
     calls.push({ url, body: init?.body?.toString() ?? null, auth: (init?.headers as Record<string, string> | undefined)?.authorization ?? null });
-    const json = url.includes("oauth.v2.access") ? access : { ok: true, user: tz === null ? {} : { tz } };
+    const json = url.includes("oauth.v2.access") ? access : { ok: true, user: { ...(tz === null ? {} : { tz }), ...(locale === null ? {} : { locale }) } };
     return new Response(JSON.stringify(json));
   };
   return { fetchImpl, calls };
@@ -71,7 +71,18 @@ describe("completeInstall (S2)", () => {
     await completeInstall({ installations: { bootstrap: async (i) => (stored.push(i), { workspaceId: "w" as never, created: true, installerMemberId: null }) }, fallbackTimezone: "America/Lima", now: () => NOW, fetch: slack.fetchImpl }, cfg, "c");
     expect(stored[0]?.settings).toEqual({ timezone: "America/Lima" });
     expect(slack.calls[0]?.body).toContain("redirect_uri=https%3A%2F%2Fpropihq.com%2Fslack%2Foauth%2Fcallback");
-    expect(slack.calls[1]).toMatchObject({ url: "https://slack.com/api/users.info?user=U0INSTALL1", auth: "Bearer xoxb-acme" });
+    expect(slack.calls[1]).toMatchObject({ url: "https://slack.com/api/users.info?user=U0INSTALL1&include_locale=true", auth: "Bearer xoxb-acme" });
+  });
+
+  test("i18n S3: the installer's Slack locale seeds the new workspace's default language", async () => {
+    const stored: InstallInput[] = [];
+    const bootstrap = async (i: InstallInput) => (stored.push(i), { workspaceId: "w" as never, created: true, installerMemberId: null });
+    await completeInstall({ installations: { bootstrap }, fallbackTimezone: "UTC", now: () => NOW, fetch: fakeSlack(access("T0ACME0001", "U0INSTALL1", "xoxb-acme"), "America/Lima", "es-LA").fetchImpl }, cfg, "c");
+    expect(stored[0]?.settings).toEqual({ timezone: "America/Lima", language: "es" });
+    await completeInstall({ installations: { bootstrap }, fallbackTimezone: "UTC", now: () => NOW, fetch: fakeSlack(access("T0ACME0001", "U0INSTALL1", "xoxb-acme"), "America/Lima", "en-US").fetchImpl }, cfg, "c");
+    expect(stored[1]?.settings).toEqual({ timezone: "America/Lima", language: "en" });
+    await completeInstall({ installations: { bootstrap }, fallbackTimezone: "UTC", now: () => NOW, fetch: fakeSlack(access("T0ACME0001", "U0INSTALL1", "xoxb-acme"), "America/Lima", "pt-BR").fetchImpl }, cfg, "c");
+    expect(stored[2]?.settings).toEqual({ timezone: "America/Lima" });
   });
 });
 

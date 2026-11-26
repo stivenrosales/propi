@@ -16,7 +16,7 @@ export interface Posted {
   readonly blocks: readonly unknown[];
 }
 
-type FakeProfile = { readonly displayName: string | null; readonly avatarUrl: string | null };
+type FakeProfile = { readonly displayName: string | null; readonly avatarUrl: string | null; readonly slackLocale?: string };
 
 export function fakeSlack(
   opts: {

@@ -44,10 +44,15 @@ export interface ServerLookup extends SlackLookup {
   profile(ws: WorkspaceId, team: string, info: SlackUserInfo): Promise<MemberId | null>;
 }
 
-const profileFields = (info: SlackUserInfo) => ({ displayName: info.displayName ?? null, avatarUrl: info.avatarUrl ?? null });
+/** S6 profile plus (i18n S3) the Slack locale when Slack sent one; without it the stored locale is kept. */
+const profileFields = (info: SlackUserInfo) => ({
+  displayName: info.displayName ?? null,
+  avatarUrl: info.avatarUrl ?? null,
+  ...(info.slackLocale === undefined ? {} : { slackLocale: info.slackLocale }),
+});
 
 /**
- * S6 backfill: copies display name and avatar from users.list onto every member linked to a Slack
+ * S6 backfill: copies display name, avatar and (i18n S3) Slack locale from users.list onto every member linked to a Slack
  * user of `team`. Unlinked users are not provisioned here; unchanged profiles are not rewritten.
  */
 export async function syncProfiles(rt: Runtime, slack: SlackApi, ws: WorkspaceId, team: string): Promise<{ readonly updated: number }> {
@@ -60,7 +65,8 @@ export async function syncProfiles(rt: Runtime, slack: SlackApi, ws: WorkspaceId
     if (id === undefined || info.isBot) continue;
     const next = profileFields(info);
     const was = current.get(id);
-    if (was === undefined || ((was.displayName ?? null) === next.displayName && (was.avatarUrl ?? null) === next.avatarUrl)) continue;
+    const sameLocale = next.slackLocale === undefined || next.slackLocale === (was?.slackLocale ?? null);
+    if (was === undefined || ((was.displayName ?? null) === next.displayName && (was.avatarUrl ?? null) === next.avatarUrl && sameLocale)) continue;
     await rt.admin.setMemberProfile(ws, id, next);
     updated++;
   }

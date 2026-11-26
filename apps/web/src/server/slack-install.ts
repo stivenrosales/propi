@@ -4,7 +4,7 @@
 // workspace with the installer as first admin; a reinstall refreshes the token and never changes roles).
 // Framework-free, with `fetch` injected, so the flow is unit-tested without the network.
 import { randomBytes } from "node:crypto";
-import type { Instant, WorkspaceId } from "@propi/core";
+import { localeFromTag, type Instant, type WorkspaceId } from "@propi/core";
 import type { DbInstallations, SlackInstallationData } from "@propi/db";
 import { signValue, verifyValue } from "./session";
 
@@ -86,14 +86,17 @@ export async function exchangeInstallCode(cfg: SlackInstallConfig, code: string,
   return { ok: true, installation: { teamId, teamName: str(team.name), botToken, botUserId, scopes, installerUserId } };
 }
 
-/** S3: the installer's Slack timezone (users.info `tz`), or null when Slack does not say. */
-export async function installerTimezone(botToken: string, userId: string, fetchImpl: Fetch = fetch): Promise<string | null> {
+/**
+ * S3: the installer's Slack timezone (users.info `tz`) and, for i18n S3, their Slack locale
+ * (`include_locale`); each null when Slack does not say.
+ */
+export async function installerProfile(botToken: string, userId: string, fetchImpl: Fetch = fetch): Promise<{ readonly timezone: string | null; readonly locale: string | null }> {
   try {
-    const res = await fetchImpl(`${SLACK_USERS_INFO_URL}?user=${encodeURIComponent(userId)}`, { method: "GET", headers: { authorization: `Bearer ${botToken}` } });
-    const r = (await res.json().catch(() => null)) as { ok?: boolean; user?: { tz?: unknown } } | null;
-    return r?.ok === true ? str(r.user?.tz) : null;
+    const res = await fetchImpl(`${SLACK_USERS_INFO_URL}?user=${encodeURIComponent(userId)}&include_locale=true`, { method: "GET", headers: { authorization: `Bearer ${botToken}` } });
+    const r = (await res.json().catch(() => null)) as { ok?: boolean; user?: { tz?: unknown; locale?: unknown } } | null;
+    return r?.ok === true ? { timezone: str(r.user?.tz), locale: str(r.user?.locale) } : { timezone: null, locale: null };
   } catch {
-    return null;
+    return { timezone: null, locale: null };
   }
 }
 
@@ -114,13 +117,16 @@ export async function completeInstall(
   const ex = await exchangeInstallCode(cfg, code, deps.fetch);
   if (!ex.ok) return ex;
   const inst = ex.installation;
-  const timezone = (await installerTimezone(inst.botToken, inst.installerUserId ?? "", deps.fetch)) ?? deps.fallbackTimezone;
+  const profile = await installerProfile(inst.botToken, inst.installerUserId ?? "", deps.fetch);
+  const timezone = profile.timezone ?? deps.fallbackTimezone;
+  // i18n S3: a new workspace speaks its installer's Slack language; without one it stays en.
+  const language = localeFromTag(profile.locale);
   const r = await deps.installations.bootstrap({
     platform: "slack",
     tenantId: inst.teamId,
     installerUserId: inst.installerUserId ?? "",
     at: deps.now() as Instant,
-    settings: { timezone },
+    settings: { timezone, ...(language === null ? {} : { language }) },
     installation: inst,
   });
   return { ok: true, workspaceId: r.workspaceId, created: r.created };

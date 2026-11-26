@@ -32,6 +32,8 @@ import {
   type LockKey,
   type MemberId,
   type MemberProfile,
+  type LanguageChoice,
+  isLocale,
   type MemberRecord,
   type Outcome,
   type PosInt,
@@ -429,12 +431,12 @@ export function createDbPorts(prisma: PrismaClient, opts: DbPortsOptions = {}): 
     },
     async member(ws, id) {
       const [row] = await prisma.$queryRaw<MemberRow[]>`
-        SELECT id, role, active, daily_limit_override, display_name, avatar_url FROM member WHERE workspace_id = ${ws} AND id = ${id}`;
+        SELECT id, role, active, daily_limit_override, display_name, avatar_url, language, slack_locale FROM member WHERE workspace_id = ${ws} AND id = ${id}`;
       return row ? toMember(row) : null;
     },
     async members(ws) {
       const rows = await prisma.$queryRaw<MemberRow[]>`
-        SELECT id, role, active, daily_limit_override, display_name, avatar_url FROM member WHERE workspace_id = ${ws} ORDER BY id`;
+        SELECT id, role, active, daily_limit_override, display_name, avatar_url, language, slack_locale FROM member WHERE workspace_id = ${ws} ORDER BY id`;
       return rows.map(toMember);
     },
     async values(ws) {
@@ -463,6 +465,8 @@ interface MemberRow {
   daily_limit_override: number | null;
   display_name: string | null;
   avatar_url: string | null;
+  language: string | null;
+  slack_locale: string | null;
 }
 
 const toMember = (r: MemberRow): MemberRecord => ({
@@ -473,6 +477,9 @@ const toMember = (r: MemberRow): MemberRecord => ({
   // S6: present only when known, so records without a profile keep their previous shape.
   ...(r.display_name === null ? {} : { displayName: r.display_name }),
   ...(r.avatar_url === null ? {} : { avatarUrl: r.avatar_url }),
+  // i18n S3, S4c: likewise present only when set; no language means "auto".
+  ...(isLocale(r.language) ? { language: r.language } : {}),
+  ...(r.slack_locale === null ? {} : { slackLocale: r.slack_locale }),
 });
 
 // ───────────── Administration (setup, seeding, tests) ─────────────
@@ -493,20 +500,36 @@ export function createDbAdmin(prisma: PrismaClient) {
         await db.$executeRaw`UPDATE workspace SET settings = ${toJson(settingsToJson(next))}::jsonb WHERE id = ${id}`;
       });
     },
-    /** Adds or replaces a member record. A profile left out keeps the stored one (S6). */
+    /**
+     * Adds or replaces a member record. A profile, Slack locale or language left out keeps the stored
+     * one (S6, i18n S3-S4); setMemberLanguage is the only way back to "auto".
+     */
     async addMember(ws: WorkspaceId, r: MemberRecord): Promise<void> {
       await prisma.$executeRaw`
-        INSERT INTO member (workspace_id, id, role, active, daily_limit_override, display_name, avatar_url)
-        VALUES (${ws}, ${r.id}, ${r.role}, ${r.active}, ${r.dailyLimitOverride}, ${r.displayName ?? null}, ${r.avatarUrl ?? null})
+        INSERT INTO member (workspace_id, id, role, active, daily_limit_override, display_name, avatar_url, language, slack_locale)
+        VALUES (${ws}, ${r.id}, ${r.role}, ${r.active}, ${r.dailyLimitOverride}, ${r.displayName ?? null}, ${r.avatarUrl ?? null}, ${r.language ?? null}, ${r.slackLocale ?? null})
         ON CONFLICT (workspace_id, id) DO UPDATE SET
           role = EXCLUDED.role, active = EXCLUDED.active, daily_limit_override = EXCLUDED.daily_limit_override,
           display_name = COALESCE(EXCLUDED.display_name, member.display_name),
-          avatar_url = COALESCE(EXCLUDED.avatar_url, member.avatar_url)`;
+          avatar_url = COALESCE(EXCLUDED.avatar_url, member.avatar_url),
+          language = COALESCE(EXCLUDED.language, member.language),
+          slack_locale = COALESCE(EXCLUDED.slack_locale, member.slack_locale)`;
     },
-    /** S6: stores the member's chat display name and avatar. Unknown members are left alone. */
+    /**
+     * S6: stores the member's chat display name and avatar, and (i18n S3) their Slack locale when the
+     * profile carries one; a profile without `slackLocale` keeps the stored locale. Unknown members are left alone.
+     */
     async setMemberProfile(ws: WorkspaceId, id: MemberId, p: MemberProfile): Promise<void> {
+      const keepLocale = p.slackLocale === undefined;
       await prisma.$executeRaw`
-        UPDATE member SET display_name = ${p.displayName}, avatar_url = ${p.avatarUrl} WHERE workspace_id = ${ws} AND id = ${id}`;
+        UPDATE member SET display_name = ${p.displayName}, avatar_url = ${p.avatarUrl},
+          slack_locale = CASE WHEN ${keepLocale} THEN slack_locale ELSE ${p.slackLocale ?? null} END
+        WHERE workspace_id = ${ws} AND id = ${id}`;
+    },
+    /** i18n S4c: the member's own language; "auto" clears it (Slack locale, then workspace default). */
+    async setMemberLanguage(ws: WorkspaceId, id: MemberId, choice: LanguageChoice): Promise<void> {
+      await prisma.$executeRaw`
+        UPDATE member SET language = ${choice === "auto" ? null : choice} WHERE workspace_id = ${ws} AND id = ${id}`;
     },
     /** Replaces the workspace's values, keeping the given order. */
     async setValues(ws: WorkspaceId, values: readonly Value[]): Promise<void> {

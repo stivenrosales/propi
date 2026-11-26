@@ -5,6 +5,8 @@ export { defineHandler, type CommandHandler, type HandlerClock, type LoadContext
 export { HANDLERS, type AppCommand, type AppResults } from "./registry.ts";
 export { requestHash } from "./hash.ts";
 
+// i18n S3: the language a member or a channel reads.
+export { memberLocale, workspaceLocale } from "./locale.ts";
 // Billing and plans (S6, S7).
 export { syncSeats, workspacePlan, type PlanDeps, type SeatSyncReport } from "./billing/index.ts";
 // Shop (S44-S59, S108).
