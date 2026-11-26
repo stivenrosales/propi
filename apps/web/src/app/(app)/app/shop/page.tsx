@@ -58,14 +58,19 @@ export default async function Shop({ searchParams }: { searchParams: Promise<Rec
             const soldOut = stock !== null && stock <= 0;
             return (
               <Card key={r.id} className="rise flex flex-col p-4 md:p-4" style={{ ["--i" as string]: i }}>
-                <RewardArt id={r.id} image={r.image} categories={r.categories} title={r.title} />
+                <RewardArt id={r.id} image={r.image} categories={r.categories} title={r.title} className="aspect-[10/7]" />
                 <div className="mt-4 flex items-start justify-between gap-3 px-1">
                   <h2 className="font-display text-lg leading-tight font-extrabold">{r.title}</h2>
                   <span className="shrink-0 rounded-full bg-coral-soft px-3 py-1">
                     <Units n={r.cost} className="text-sm" />
                   </span>
                 </div>
-                <p className="mt-1 line-clamp-2 flex-1 px-1 text-sm text-ink-soft">{r.description}</p>
+                {/* The clamp sits inside the stretching box: a stretched clamped paragraph shows a cut third line. */}
+                <div className="mt-1 flex-1 px-1">
+                  <p className="line-clamp-3 text-sm text-ink-soft" title={r.description}>
+                    {r.description}
+                  </p>
+                </div>
                 <div className="mt-3 flex flex-wrap gap-1.5 px-1">
                   {stock === null ? <Badge tone="mint">{t("unlimited")}</Badge> : soldOut ? <Badge tone="coral">{t("soldOut")}</Badge> : <Badge tone="sunflower">{t("left", { count: stock })}</Badge>}
                   {r.categories.map((c) => (
