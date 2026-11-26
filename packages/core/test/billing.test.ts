@@ -60,6 +60,10 @@ describe("S11 seats follow active members", () => {
     expect(seatTarget({ subscription: sub({ status: "trialing", seats: 12 }), comped: false }, 3)).toBe(3);
   });
 
+  test("a subscription set to cancel at period end keeps its seats", () => {
+    expect(seatTarget({ subscription: sub({ seats: 12, cancelAtPeriodEnd: true }), comped: false }, 14)).toBeNull();
+  });
+
   test("no update when the seats already match, never below 1 seat", () => {
     expect(seatTarget({ subscription: sub({ seats: 12 }), comped: false }, 12)).toBeNull();
     expect(seatTarget({ subscription: sub({ seats: 1 }), comped: false }, 0)).toBeNull();

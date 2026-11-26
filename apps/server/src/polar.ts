@@ -26,6 +26,7 @@ export function polarSeatUpdater(cfg: PolarSeatsConfig, fetcher: Fetch = fetch):
         method: "PATCH",
         headers: { Authorization: `Bearer ${cfg.accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ seats }),
+        signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) throw new Error(`Polar API ${res.status} on ${path}: ${(await res.text()).slice(0, 300)}`);
     },

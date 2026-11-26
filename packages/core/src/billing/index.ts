@@ -76,7 +76,8 @@ const SEAT_SYNCED: readonly string[] = ["active", "trialing"];
  */
 export function seatTarget(account: BillingAccount, activeMembers: number): number | null {
   const s = account.subscription;
-  if (account.comped || s === null || s.seats === null || !SEAT_SYNCED.includes(s.status)) return null;
+  // A subscription set to cancel at period end keeps its seats until it ends.
+  if (account.comped || s === null || s.seats === null || s.cancelAtPeriodEnd || !SEAT_SYNCED.includes(s.status)) return null;
   const target = Math.max(1, activeMembers);
   return target === s.seats ? null : target;
 }
