@@ -71,7 +71,9 @@ export function errorMessage(error: { readonly code: string; readonly [k: string
     case "insufficient_redeemable":
       return `Not enough redeemable balance: it costs ${String(e.cost)}, you have ${String(e.redeemable)}.`;
     case "out_of_stock":
-      return "That reward is out of stock right now.";
+      return typeof e.available === "number" ? `Only ${e.available} left. Pick fewer units.` : "That reward is out of stock right now.";
+    case "invalid_quantity":
+      return "Pick how many to redeem: a whole number, 1 or more.";
     case "plan_limit":
       return "Your workspace is over the Free plan limit. Ask an admin to upgrade to Pro.";
     case "billing_not_configured":

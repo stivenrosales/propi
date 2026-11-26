@@ -45,6 +45,7 @@ export const exportRedemptionRow = (r: Redemption): ExportRedemptionRow => ({
   memberId: (r.memberId ?? "") as MemberId,
   rewardId: r.rewardId ?? "",
   cost: r.cost,
+  quantity: r.quantity ?? 1,
   state: r.state,
   createdAt: r.createdAt,
 });

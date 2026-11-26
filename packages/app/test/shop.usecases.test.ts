@@ -346,3 +346,63 @@ describe("shop store wiring", () => {
     expect(m("ana")).toBe("ana");
   });
 });
+
+describe("S2 batch redemption through the app", () => {
+  const redeemN = (who: string, rewardId: string, quantity: number, variantId: string | null = null) => ({ ...redeem(who, rewardId, undefined, memberActor(who), variantId), quantity });
+
+  test("S2: 3 units debit 3 x cost once, take 3 stock units and leave one pending redemption with quantity 3", async () => {
+    const { run, fund, redeemable, mem, store, app } = shopSetup();
+    await fund("ana", 42);
+    const id = await activeReward(run, { stock: 5 });
+    const r = await run(redeemN("ana", id, 3));
+    expect(r).toMatchObject({ ok: true, value: { state: "pending", cost: 36, redeemable: 6 } });
+    expect(await redeemable("ana")).toBe(6);
+    expect(mem.entries(WS).filter((e) => e.kind === "spend").map((e) => e.amount)).toEqual([36]);
+    expect(store.state(WS).rewards[0]?.stock).toBe(2);
+    expect(store.state(WS).redemptions).toEqual([expect.objectContaining({ quantity: 3, cost: 36, state: "pending" })]);
+    expect(mem.events(WS).filter((e) => e.event.type === "redemption.created").map((e) => e.event)).toEqual([expect.objectContaining({ cost: 36, quantity: 3 })]);
+    expect((await app.ledgerCheck(WS)).ok).toBe(true);
+  });
+
+  test("S2: stock below N, balance below N x cost and a budget below N units refuse the whole batch", async () => {
+    const { run, fund, store } = shopSetup();
+    await fund("ana", 100);
+    const id = await activeReward(run, { stock: 2 });
+    expect(await run(redeemN("ana", id, 3))).toMatchObject({ ok: false, error: { code: "out_of_stock", available: 2 } });
+    const cheap = await activeReward(run, { cost: 30 });
+    expect(await run(redeemN("ana", cheap, 4))).toMatchObject({ ok: false, error: { code: "insufficient_redeemable", cost: 120, redeemable: 100 } });
+    await run(configure({ monthlyBudget: { minor: 5000, currency: "PEN" } }));
+    expect(await run(redeemN("ana", id, 3))).toMatchObject({ ok: false, error: { code: "out_of_stock" } });
+    const unlimited = await activeReward(run, { cost: 1 });
+    expect(await run(redeemN("ana", unlimited, 3))).toMatchObject({ ok: false, error: { code: "budget_exceeded", remaining: { minor: 5000, currency: "PEN" } } });
+    expect(store.state(WS).redemptions).toEqual([]);
+  });
+
+  test("S2: one approval covers all units; rejecting refunds N x cost and returns N stock units", async () => {
+    const { run, fund, redeemable, store, mem } = shopSetup();
+    await fund("ana", 50);
+    const id = await activeReward(run, { stock: 4 });
+    const a = await run(redeemN("ana", id, 2));
+    if (!a.ok) throw new Error(JSON.stringify(a.error));
+    expect(await run(transition(a.value.redemptionId, "approve"))).toMatchObject({ ok: true, value: { state: "approved" } });
+    expect(store.state(WS).redemptions).toHaveLength(1);
+    expect(await run(transition(a.value.redemptionId, "cancel"))).toMatchObject({ ok: true, value: { state: "cancelled", refunded: 24 } });
+    expect(await redeemable("ana")).toBe(50);
+    expect(store.state(WS).rewards[0]?.stock).toBe(4);
+    const b = await run(redeemN("ana", id, 3));
+    if (!b.ok) throw new Error(JSON.stringify(b.error));
+    expect(await run(transition(b.value.redemptionId, "reject"))).toMatchObject({ ok: true, value: { state: "rejected", refunded: 36 } });
+    expect(await redeemable("ana")).toBe(50);
+    expect(store.state(WS).rewards[0]?.stock).toBe(4);
+    expect(mem.events(WS).filter((e) => e.event.type === "redemption.rejected").map((e) => e.event)).toEqual([expect.objectContaining({ cost: 36, quantity: 3 })]);
+  });
+
+  test("S2: a single-unit redemption behaves exactly as before (quantity 1)", async () => {
+    const { run, fund, store } = shopSetup();
+    await fund("ana", 42);
+    const id = await activeReward(run, { stock: 5 });
+    expect(await run(redeem("ana", id))).toMatchObject({ ok: true, value: { state: "pending", cost: 12, redeemable: 30 } });
+    expect(store.state(WS).rewards[0]?.stock).toBe(4);
+    expect(store.state(WS).redemptions).toEqual([expect.objectContaining({ quantity: 1, cost: 12 })]);
+  });
+});

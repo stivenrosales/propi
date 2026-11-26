@@ -191,7 +191,7 @@ describe("S49 S51 S53 S54 transitions", () => {
 
   test("S54: every state change emits its event and notifies the member", () => {
     const ev = (r: Redemption, t: RedemptionTransition) => decide(r, t, admin).events as ShopEvent[];
-    expect(ev(redemption(), "approve")).toEqual([{ type: "redemption.approved", redemptionId: "rd-1", rewardId: "rw-1", collabId: null, cost: 12, notify: ["ana"] }]);
+    expect(ev(redemption(), "approve")).toEqual([{ type: "redemption.approved", redemptionId: "rd-1", rewardId: "rw-1", collabId: null, cost: 12, quantity: 1, notify: ["ana"] }]);
     expect(types(ev(redemption(), "reject"))).toEqual(["redemption.rejected"]);
     expect(types(ev(redemption({ state: "approved" }), "cancel"))).toEqual(["redemption.cancelled"]);
     expect(types(ev(redemption({ state: "approved" }), "fulfil"))).toEqual(["redemption.fulfilled"]);
@@ -303,5 +303,67 @@ describe("Redemption.tla invariants over the deciders", () => {
       }
     }
     expect(checked).toBeGreaterThan(1000);
+  });
+});
+
+describe("S2 batch redemption: one redemption carries a quantity", () => {
+  const qty = (quantity: number, over: Partial<Redeem> = {}) => redeemCmd({ quantity, ...over } as Partial<Redeem>);
+
+  test("S2: cost = unit cost x quantity, one spend entry, one redemption that carries the quantity", () => {
+    const d = decideRedeem(snap(), qty(3), NOW);
+    expect(d.outcome).toEqual({ ok: true, value: { redemptionId: "rd-1", state: "pending", cost: 36, redeemable: 6 } });
+    expect(d.entries).toEqual([{ kind: "spend", amount: 36, memberId: "ana", counterpartId: null, cause: { type: "redemption", redemptionId: "rd-1" }, source: null, allowanceDay: null, reason: "Lunch voucher" }]);
+    expect(d.writes.at(-1)).toMatchObject({ t: "shop.redemption.put", redemption: { quantity: 3, cost: 36, internalCost: { minor: 7500, currency: "PEN" } } });
+  });
+
+  test("S2: insufficient balance for N units is refused with the total cost", () => {
+    expect(decideRedeem(snap(), qty(4), NOW).outcome).toEqual({ ok: false, error: { code: "insufficient_redeemable", cost: 48, redeemable: 42 } });
+  });
+
+  test("S2: stock below N is refused with what is left; stock N is taken in one conditional decrement", () => {
+    expect(decideRedeem(snap({ reward: reward({ stock: 2 }) }), qty(3), NOW).outcome).toEqual({ ok: false, error: { code: "out_of_stock", available: 2 } });
+    const ok = decideRedeem(snap({ reward: reward({ stock: 3 }) }), qty(3), NOW);
+    expect(ok.writes[0]).toEqual({ t: "shop.stock.take", rewardId: "rw-1", variantId: null, quantity: 3 });
+  });
+
+  test("S2: the monthly budget counts the internal cost of all N units", () => {
+    const budget = shopSettings({ monthlyBudget: { minor: 10000, currency: "PEN" } });
+    expect(decideRedeem(snap({ settings: budget, budgetSpent: 3000 }), qty(3), NOW).outcome).toEqual({ ok: false, error: { code: "budget_exceeded", remaining: { minor: 7000, currency: "PEN" } } });
+    const ok = decideRedeem(snap({ settings: budget, budgetSpent: 2500 }), qty(3), NOW);
+    expect(ok.outcome.ok).toBe(true);
+    expect(budgetSpent([(ok.writes.at(-1) as { redemption: Redemption }).redemption], "2026-11")).toBe(7500);
+  });
+
+  test("S2: the Free plan limit (plan_limit) still applies to a batch", () => {
+    expect(decideRedeem(snap({ plan: { overLimit: true, limit: 10, activeMembers: 11 } as never }), qty(2), NOW).outcome).toEqual({ ok: false, error: { code: "plan_limit", limit: 10, activeMembers: 11 } });
+  });
+
+  test("S2: a quantity that is not a positive integer is refused", () => {
+    for (const n of [0, -1, 1.5, Number.NaN]) expect(decideRedeem(snap(), qty(n), NOW).outcome).toEqual({ ok: false, error: { code: "invalid_quantity" } });
+  });
+
+  test("S2: a Redeem without quantity (old clients) is one unit, exactly as before", () => {
+    const before = decideRedeem(snap({ reward: reward({ stock: 2 }) }), redeemCmd(), NOW);
+    expect(before.outcome).toEqual({ ok: true, value: { redemptionId: "rd-1", state: "pending", cost: 12, redeemable: 30 } });
+    expect(before.writes[0]).toEqual({ t: "shop.stock.take", rewardId: "rw-1", variantId: null });
+    expect(before.writes[1]).toMatchObject({ redemption: { quantity: 1, cost: 12 } });
+    expect(decideRedeem(snap({ reward: reward({ stock: 2 }) }), qty(1), NOW)).toEqual(before);
+  });
+
+  test("S2: events carry the quantity; rows without one read as 1", () => {
+    const d = decideRedeem(snap(), qty(3), NOW);
+    expect(d.events[0]).toEqual({ type: "redemption.created", redemptionId: "rd-1", rewardId: "rw-1", collabId: null, cost: 36, quantity: 3, notify: ["ana"] });
+    const old = decideTransition({ redemption: redemption(), collab: null, contributions: new Map() }, transition("approve", admin), NOW);
+    expect(old.events[0]).toMatchObject({ type: "redemption.approved", quantity: 1 });
+  });
+
+  test("S2: reject and cancel refund cost x N and release N stock units", () => {
+    const held = redemption({ quantity: 3, cost: 36 as PosInt, stockReserved: true } as Partial<Redemption>);
+    const rejected = decideTransition({ redemption: held, collab: null, contributions: new Map() }, transition("reject"), NOW);
+    expect(rejected.outcome).toMatchObject({ ok: true, value: { state: "rejected", refunded: 36 } });
+    expect(rejected.writes).toContainEqual({ t: "shop.stock.add", rewardId: "rw-1", variantId: null, quantity: 3 });
+    const cancelled = decideTransition({ redemption: { ...held, state: "approved" }, collab: null, contributions: new Map() }, transition("cancel", admin), NOW);
+    expect(cancelled.entries).toEqual([expect.objectContaining({ kind: "refund", amount: 36, memberId: "ana" })]);
+    expect(cancelled.writes).toContainEqual({ t: "shop.stock.add", rewardId: "rw-1", variantId: null, quantity: 3 });
   });
 });

@@ -66,7 +66,8 @@ export interface SlackBlockAction {
   readonly team: { readonly id: string } | null;
   readonly user: { readonly id: string; readonly team_id?: string };
   readonly trigger_id: string;
-  readonly actions: readonly { readonly action_id: string; readonly value?: string; readonly action_ts: string }[];
+  /** Buttons carry `value`; a static_select (the S2 quantity picker) carries `selected_option`. */
+  readonly actions: readonly { readonly action_id: string; readonly value?: string; readonly selected_option?: { readonly value: string }; readonly action_ts: string }[];
 }
 
 /** A message the reaction points at: its author and text. */

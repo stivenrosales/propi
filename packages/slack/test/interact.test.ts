@@ -51,6 +51,22 @@ describe("buttons", () => {
     });
   });
 
+  test("S2: the quantity picker → one Redeem with that quantity, keyed like the button", () => {
+    const p = fixture<SlackBlockAction>("block_actions.redeem.json");
+    const picked = { action_id: "propi_redeem_quantity", action_ts: "1764083600.001100", selected_option: { value: "reward-tee|size-m#3" } };
+    expect(actionCommand({ ...p, actions: [picked] }, WS, ana, NOW)).toEqual({
+      type: "Redeem",
+      key: "slack:redeem:T0PROPI001:U0ANA00001:1764083600.001100",
+      workspaceId: WS,
+      actor: ana,
+      at: NOW,
+      memberId: "ana",
+      rewardId: "reward-tee",
+      variantId: "size-m",
+      quantity: 3,
+    });
+  });
+
   test("S48: a variant button carries <reward>|<variant>", () => {
     const p = fixture<SlackBlockAction>("block_actions.redeem.json");
     const cmd = actionCommand({ ...p, actions: [{ ...p.actions[0]!, value: "reward-tee|size-m" }] }, WS, ana, NOW);

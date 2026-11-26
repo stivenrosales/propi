@@ -4,7 +4,7 @@
 import { formatUnits, type AllowanceView, type Balances, type Currency, type DomainError, type MemberId, type Reward } from "@propi/app";
 import type { LeaderboardRow } from "@propi/core/boards";
 import type { Notification } from "@propi/core/notify";
-import { ACTIONS, redeemValue } from "./interact.ts";
+import { ACTIONS, redeemQuantityValue, redeemValue } from "./interact.ts";
 
 /** A Block Kit block. Kept structural: Slack validates the JSON, tests pin the shapes. */
 export type Block = { readonly type: string } & Readonly<Record<string, unknown>>;
@@ -124,12 +124,17 @@ export function notificationMessage(n: Notification, ctx: RenderContext): SlackM
 export interface RedemptionNotice {
   readonly type: `redemption.${"created" | "approved" | "rejected" | "cancelled" | "fulfilled"}`;
   readonly cost: number;
+  /** S2: units in the redemption; absent or 1 reads as before. */
+  readonly quantity?: number;
   readonly rewardTitle: string | null;
 }
 
+/** S2: "Mug" for one unit, "3 × Mug" for a batch. */
+const unitsOf = (title: string, quantity: number | undefined): string => (quantity === undefined || quantity === 1 ? title : `${quantity} × ${title}`);
+
 /** S54: the member's private notice for a redemption state change. */
 export function redemptionMessage(e: RedemptionNotice, ctx: RenderContext): SlackMessageBody {
-  const what = e.rewardTitle === null ? "your redemption" : `*${escapeText(e.rewardTitle)}*`;
+  const what = e.rewardTitle === null ? "your redemption" : `*${escapeText(unitsOf(e.rewardTitle, e.quantity))}*`;
   switch (e.type) {
     case "redemption.created":
       return msg(`You redeemed ${what} for ${units(ctx, e.cost)}. We'll let you know when it's approved.`);
@@ -145,9 +150,12 @@ export function redemptionMessage(e: RedemptionNotice, ctx: RenderContext): Slac
 }
 
 /** S6: the approver's request, with buttons that send TransitionRedemption. */
-export function redemptionApprovalMessage(r: { readonly redemptionId: string; readonly member: MemberId | null; readonly rewardTitle: string | null; readonly cost: number }, ctx: RenderContext): SlackMessageBody {
+export function redemptionApprovalMessage(
+  r: { readonly redemptionId: string; readonly member: MemberId | null; readonly rewardTitle: string | null; readonly cost: number; readonly quantity?: number },
+  ctx: RenderContext,
+): SlackMessageBody {
   const who = r.member === null ? "A group" : ctx.who(r.member);
-  const text = `${who} redeemed ${r.rewardTitle === null ? "a reward" : `*${escapeText(r.rewardTitle)}*`} for ${units(ctx, r.cost)}.`;
+  const text = `${who} redeemed ${r.rewardTitle === null ? "a reward" : `*${escapeText(unitsOf(r.rewardTitle, r.quantity))}*`} for ${units(ctx, r.cost)}.`;
   return msg(text, md(text), {
     type: "actions",
     elements: [button("Approve", ACTIONS.approveRedemption, r.redemptionId, "primary"), button("Reject", ACTIONS.rejectRedemption, r.redemptionId, "danger")],
@@ -224,6 +232,38 @@ export function helpMessage(ctx: RenderContext): SlackMessageBody {
   );
 }
 
+/** S2: the most units the "Redeem more" picker offers; the web shop has no such cap. */
+const PICKER_MAX = 10;
+
+/**
+ * S2: a static_select of 2..N units per available option (N capped by balance, stock and PICKER_MAX),
+ * each label showing the total. Null when no option allows two units. Core stays the source of truth.
+ */
+function quantityPicker(r: Reward, options: readonly { label: string; rewardId: string; variantId: string | null; stock: number | null }[], redeemable: number, ctx: RenderContext): Block | null {
+  const byBalance = Math.floor(redeemable / r.cost);
+  const choices = options.flatMap((o) => {
+    const max = Math.min(PICKER_MAX, byBalance, o.stock ?? PICKER_MAX);
+    return Array.from({ length: Math.max(0, max - 1) }, (_, i) => i + 2).map((q) => ({
+      text: { type: "plain_text", text: `${q} × ${o.label} · ${formatUnits(ctx.currency, r.cost * q)}`.slice(0, 75), emoji: true },
+      value: redeemQuantityValue(o.rewardId, o.variantId, q),
+    }));
+  });
+  if (choices.length === 0) return null;
+  return {
+    type: "static_select",
+    action_id: ACTIONS.redeemQuantity,
+    placeholder: { type: "plain_text", text: "Redeem more", emoji: true },
+    options: choices.slice(0, 100),
+    confirm: {
+      type: "confirm" as const,
+      title: { type: "plain_text", text: "Redeem several?" },
+      text: { type: "mrkdwn", text: `Spend the total shown for *${escapeText(r.title)}*? One approval covers every unit.` },
+      confirm: { type: "plain_text", text: "Redeem" },
+      deny: { type: "plain_text", text: "Cancel" },
+    },
+  };
+}
+
 function rewardBlocks(r: Reward, redeemable: number, ctx: RenderContext): Block[] {
   const stock = r.variants.length === 0 && r.stock !== null ? ` · ${r.stock} left` : "";
   const desc = r.description === "" ? "" : `\n${escapeText(r.description)}`;
@@ -238,14 +278,13 @@ function rewardBlocks(r: Reward, redeemable: number, ctx: RenderContext): Block[
   });
   const options =
     r.variants.length === 0
-      ? [{ label: r.title, value: redeemValue(r.id, null), out: r.stock !== null && r.stock <= 0 }]
-      : r.variants.map((v) => ({ label: `${r.title} (${v.name})`, value: redeemValue(r.id, v.id), out: v.stock !== null && v.stock <= 0, name: v.name }));
-  const buttons = options
-    .filter((o) => !o.out)
-    .slice(0, 5)
-    .map((o) => button("name" in o ? `Redeem ${o.name}` : "Redeem", ACTIONS.redeem, o.value, "primary", confirm(o.label)));
+      ? [{ label: r.title, value: redeemValue(r.id, null), out: r.stock !== null && r.stock <= 0, variantId: null, stock: r.stock }]
+      : r.variants.map((v) => ({ label: `${r.title} (${v.name})`, value: redeemValue(r.id, v.id), out: v.stock !== null && v.stock <= 0, name: v.name, variantId: v.id, stock: v.stock }));
+  const available = options.filter((o) => !o.out).slice(0, 5);
+  const buttons = available.map((o) => button("name" in o ? `Redeem ${o.name}` : "Redeem", ACTIONS.redeem, o.value, "primary", confirm(o.label)));
   if (!affordable || buttons.length === 0) return [section, context(buttons.length === 0 ? "Out of stock" : `You need ${formatUnits(ctx.currency, r.cost - redeemable)} more`)];
-  return [section, { type: "actions", elements: buttons }];
+  const picker = quantityPicker(r, available.map((o) => ({ label: o.label, rewardId: r.id, variantId: o.variantId, stock: o.stock })), redeemable, ctx);
+  return [section, { type: "actions", elements: picker === null ? buttons : [...buttons, picker] }];
 }
 
 export function shopBlocks(rewards: readonly Reward[], redeemable: number, ctx: RenderContext, limit = 15): Block[] {

@@ -32,7 +32,7 @@ describe("export", () => {
       ["gift", "ana", "giver", "2021-03-04T15:00:00.000Z"],
       ["gift", "diana", "bob", "2026-11-25T15:00:00.000Z"],
     ]);
-    expect(r.value.tables.redemptions[1]).toEqual(["r1", "ana", "rw1", "1", "fulfilled", "2022-01-01T15:00:00.000Z"]);
+    expect(r.value.tables.redemptions[1]).toEqual(["r1", "ana", "rw1", "1", "fulfilled", "2022-01-01T15:00:00.000Z", "1"]); // S2: quantity column, 1 for rows without one
     expect(r.value.tables.members.slice(1).map((row) => row[0])).toEqual(["ana", "bob", "boss", "diana", "giver", "gone", "lind"]);
     expect(r.value.csv.gifts).toBe(toCsv(r.value.tables.gifts));
     expect(r.value.csv.gifts).toContain('"old, ""classic"" gift"');

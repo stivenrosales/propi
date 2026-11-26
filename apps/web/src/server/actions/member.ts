@@ -6,11 +6,12 @@ import type { NotificationType } from "@propi/core/notify";
 import { actionViewer } from "../auth";
 import { envelope, finish, int, optStr, str } from "../command";
 import { propi } from "../propi";
+import { redeemQuantity } from "../shop-view";
 
-/** S48, S50: redeem a reward from the web (the same command Slack sends). */
+/** S48, S50: redeem a reward from the web (the same command Slack sends). S2: `quantity` units in one step. */
 export async function redeemAction(form: FormData) {
   const v = await actionViewer();
-  const res = await propi().app.execute({ ...envelope(v, form), type: "Redeem", memberId: v.memberId, rewardId: str(form, "rewardId"), variantId: optStr(form, "variantId") });
+  const res = await propi().app.execute({ ...envelope(v, form), type: "Redeem", memberId: v.memberId, rewardId: str(form, "rewardId"), variantId: optStr(form, "variantId"), ...redeemQuantity(form) });
   finish("/app/shop", res, res.ok ? `Redeemed! Your redemption is ${res.value.state}.` : "");
 }
 

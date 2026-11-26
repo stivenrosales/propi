@@ -1,14 +1,15 @@
 import { rewardCatalog } from "@propi/app";
 import { RewardArt } from "@/components/app/reward-art";
-import { Badge, Button, Card, Empty, Flash, KeyInput, PageHeader, Select, Units } from "@/components/app/ui";
+import { Badge, Card, Empty, Flash, PageHeader, Units } from "@/components/app/ui";
 import { redeemAction } from "@/server/actions/member";
 import { requireViewer } from "@/server/auth";
 import { formKey } from "@/server/command";
 import { propi } from "@/server/propi";
+import { RedeemForm } from "./redeem-form";
 
 export const metadata = { title: "Shop" };
 
-// S44-S48, S50: the catalog of active rewards, redeemable from the web.
+// S44-S48, S50: the catalog of active rewards, redeemable from the web. S2: several units in one step.
 export default async function Shop({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const viewer = await requireViewer();
   const sp = await searchParams;
@@ -50,7 +51,6 @@ export default async function Shop({ searchParams }: { searchParams: Promise<Rec
             const withVariants = r.variants.length > 0;
             const stock = withVariants ? r.variants.reduce<number | null>((s, v) => (s === null || v.stock === null ? null : s + v.stock), 0) : r.stock;
             const soldOut = stock !== null && stock <= 0;
-            const short = balances.redeemable < r.cost;
             return (
               <Card key={r.id} className="rise flex flex-col p-4 md:p-4" style={{ ["--i" as string]: i }}>
                 <RewardArt id={r.id} image={r.image} categories={r.categories} title={r.title} />
@@ -67,23 +67,7 @@ export default async function Shop({ searchParams }: { searchParams: Promise<Rec
                     <Badge key={c}>{c}</Badge>
                   ))}
                 </div>
-                <form action={redeemAction} className="mt-4 flex gap-2 px-1">
-                  <KeyInput value={formKey()} />
-                  <input type="hidden" name="rewardId" value={r.id} />
-                  {withVariants ? (
-                    <Select name="variantId" aria-label="Variant" className="flex-1">
-                      {r.variants.map((v) => (
-                        <option key={v.id} value={v.id} disabled={v.stock !== null && v.stock <= 0}>
-                          {v.name}
-                          {v.stock !== null ? ` (${v.stock})` : ""}
-                        </option>
-                      ))}
-                    </Select>
-                  ) : null}
-                  <Button className="flex-1" confirm={`Spend ${r.cost}? Tap again`} disabled={soldOut || short} title={short ? "Not enough props yet" : undefined}>
-                    {short ? `Need ${r.cost - balances.redeemable} more` : "Redeem"}
-                  </Button>
-                </form>
+                <RedeemForm action={redeemAction} formKey={formKey()} rewardId={r.id} cost={r.cost} redeemable={balances.redeemable} stock={r.stock} variants={r.variants} />
               </Card>
             );
           })}

@@ -1,13 +1,15 @@
+import { redemptionQuantity } from "@propi/core";
 import { RewardArt } from "@/components/app/reward-art";
 import { StateBadge } from "@/components/app/state-badge";
 import { Card, Empty, PageHeader, Units } from "@/components/app/ui";
 import { formatDate } from "@/lib/format";
 import { requireViewer } from "@/server/auth";
 import { propi } from "@/server/propi";
+import { unitsTitle } from "@/server/shop-view";
 
 export const metadata = { title: "My redemptions" };
 
-// S49-S54: the member's own redemptions and where each one stands.
+// S49-S54: the member's own redemptions and where each one stands. S2: batches show their quantity.
 export default async function MyRedemptions() {
   const viewer = await requireViewer();
   const shop = propi().shop(viewer.ws);
@@ -31,7 +33,7 @@ export default async function MyRedemptions() {
                   <RewardArt id={r.rewardId ?? r.id} image={reward?.image ?? null} categories={reward?.categories ?? []} title={reward?.title ?? ""} className="h-20" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-display text-lg font-extrabold">{reward?.title ?? "Reward"}</p>
+                  <p className="font-display text-lg font-extrabold">{unitsTitle(reward?.title ?? "Reward", redemptionQuantity(r))}</p>
                   <p className="text-sm text-ink-soft">
                     {formatDate(r.createdAt, settings.timezone)}
                     {r.reason ? ` · ${r.reason}` : ""}

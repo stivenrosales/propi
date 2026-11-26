@@ -1,5 +1,5 @@
 import { Check, PackageCheck, Undo2, X } from "lucide-react";
-import type { Redemption } from "@propi/core";
+import { redemptionQuantity, type Redemption } from "@propi/core";
 import { RewardArt } from "@/components/app/reward-art";
 import { StateBadge } from "@/components/app/state-badge";
 import { Avatar, Badge, Button, Card, CardTitle, Empty, Flash, Input, KeyInput, PageHeader, Table, Td, Units } from "@/components/app/ui";
@@ -8,6 +8,7 @@ import { transitionRedemptionAction } from "@/server/actions/admin";
 import { requireViewer } from "@/server/auth";
 import { formKey } from "@/server/command";
 import { propi } from "@/server/propi";
+import { unitsTitle } from "@/server/shop-view";
 import { workspaceView } from "@/server/views";
 
 export const metadata = { title: "Redemption queue" };
@@ -37,7 +38,8 @@ export default async function RedemptionQueue({ searchParams }: { searchParams: 
   const approved = all.filter((r) => r.state === "approved").sort((a, b) => a.createdAt - b.createdAt);
   const done = all.filter((r) => !["pending", "approved"].includes(r.state)).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 25);
   const who = (r: Redemption) => (r.memberId ? w.label(r.memberId) : "Group reward");
-  const title = (r: Redemption) => (r.rewardId ? (byId.get(r.rewardId)?.title ?? "Reward") : "Group reward");
+  // S2: a batch reads "3 × Mug"; the cost shown is the total for all units.
+  const title = (r: Redemption) => (r.rewardId ? unitsTitle(byId.get(r.rewardId)?.title ?? "Reward", redemptionQuantity(r)) : "Group reward");
 
   const Row = ({ r, actions }: { r: Redemption; actions: React.ReactNode }) => {
     const reward = r.rewardId ? byId.get(r.rewardId) : undefined;

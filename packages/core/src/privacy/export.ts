@@ -10,6 +10,8 @@ export interface ExportRedemptionRow {
   readonly memberId: MemberId;
   readonly rewardId: string;
   readonly cost: number;
+  /** S2: units in the redemption; absent (rows before batch redemption) means 1. */
+  readonly quantity?: number;
   readonly state: string;
   readonly createdAt: Instant;
 }
@@ -84,8 +86,9 @@ export function exportAll(src: ExportSource): ExportTables {
         ]),
     ],
     redemptions: [
-      ["redemption_id", "member_id", "reward_id", "cost", "state", "created_at"],
-      ...[...src.redemptions].sort((a, b) => a.createdAt - b.createdAt).map((r) => [r.id, r.memberId, r.rewardId, String(r.cost), r.state, iso(r.createdAt)]),
+      // S2: quantity is appended last so existing column positions do not move.
+      ["redemption_id", "member_id", "reward_id", "cost", "state", "created_at", "quantity"],
+      ...[...src.redemptions].sort((a, b) => a.createdAt - b.createdAt).map((r) => [r.id, r.memberId, r.rewardId, String(r.cost), r.state, iso(r.createdAt), String(r.quantity ?? 1)]),
     ],
     members: [
       ["member_id", "role", "active", "daily_limit_override"],

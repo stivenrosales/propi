@@ -245,6 +245,34 @@ describe.each(backends)("module state on %s", (_name, backend, skip) => {
     expect(await h.shop().budgetSpent("2026-11")).toBe(4000);
   });
 
+  test.skipIf(skip)("S2: a batch takes N stock units at once, refuses more than is left, and rows without a quantity read as 1", async () => {
+    h = await backend();
+    await fund("ana", 100);
+    await h.run({ type: "CreateReward", ...base("web:reward:1"), reward: rewardInput({ stock: 5, internalCost: null }) });
+    await h.run({ type: "SetRewardStatus", ...base("web:status:1"), rewardId: "reward-1", status: "active" });
+    const r = await h.run<{ redemptionId: string; cost: number }>({ type: "Redeem", ...base("web:redeem:1", memberActor("ana")), memberId: m("ana"), rewardId: "reward-1", variantId: null, quantity: 3 });
+    expect(r).toMatchObject({ ok: true, value: { cost: 30 } });
+    expect((await h.shop().reward("reward-1"))?.stock).toBe(2);
+    expect(await h.shop().redemption(r.ok ? r.value.redemptionId : "")).toMatchObject({ quantity: 3, cost: 30 });
+    expect(await h.run({ type: "Redeem", ...base("web:redeem:2", memberActor("ana")), memberId: m("ana"), rewardId: "reward-1", variantId: null, quantity: 3 })).toMatchObject({ ok: false, error: { code: "out_of_stock", available: 2 } });
+    const take = (k: string, quantity: number) =>
+      h.ports.uow.run(h.ws, [], async (tx) => {
+        await tx.claim(k as CommandKey, "h");
+        await tx.commit({ key: k as CommandKey, requestHash: "h", commandType: "Test", actor: admin, at: T0 as Instant, command: {}, decision: { ...accept({}), writes: [{ t: "shop.stock.take", rewardId: "reward-1", variantId: null, quantity }] as unknown as readonly StateWrite[] } });
+      });
+    await expect(take("job:take-3", 3)).rejects.toThrow(); // the conditional decrement: never below 0
+    expect((await h.shop().reward("reward-1"))?.stock).toBe(2);
+    const old = {
+      id: "old-1", memberId: m("ana"), rewardId: "reward-1", variantId: null, collabId: null, cost: 10 as PosInt, internalCost: null, budgetMonth: null,
+      stockReserved: false, giftCard: false, cardIssued: false, onBehalfOf: "self", state: "approved", createdAt: T0, updatedAt: T0, reason: null,
+    };
+    await h.ports.uow.run(h.ws, [], async (tx) => {
+      await tx.claim("job:old-row" as CommandKey, "h");
+      await tx.commit({ key: "job:old-row" as CommandKey, requestHash: "h", commandType: "Test", actor: admin, at: T0 as Instant, command: {}, decision: { ...accept({}), writes: [{ t: "shop.redemption.put", from: null, redemption: old }] as unknown as readonly StateWrite[] } });
+    });
+    expect(await h.shop().redemption("old-1")).toMatchObject({ id: "old-1", quantity: 1, cost: 10 });
+  });
+
   test.skipIf(skip)("S49 S46: a failed compare-and-set rolls back the whole unit (claim, entries, writes)", async () => {
     h = await backend();
     await fund("ana", 5);

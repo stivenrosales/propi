@@ -40,7 +40,10 @@ describe("export", () => {
       .give({ id: "g2", from: "bob", to: { ana: 1 }, isPrivate: true, text: null })
       .entry("bonus", "ana", 3)
       .data();
-    const redemptions = [{ id: "r1", memberId: m("ana"), rewardId: "rw1", cost: 2, state: "approved", createdAt: lima("2020-05-05") }];
+    const redemptions = [
+      { id: "r1", memberId: m("ana"), rewardId: "rw1", cost: 2, state: "approved", createdAt: lima("2020-05-05") },
+      { id: "r2", memberId: m("ana"), rewardId: "rw1", cost: 6, quantity: 3, state: "pending", createdAt: lima("2020-05-06") },
+    ];
     const out = exportAll({ ...data, redemptions });
     expect(out.gifts).toEqual([
       ["gift_id", "giver_id", "source", "channel_id", "private", "text", "value_ids", "allowance_day", "created_at", "message_ref"],
@@ -54,8 +57,9 @@ describe("export", () => {
       ["3", "cmd:3", "0", "bonus", "3", "ana", "", "admin", "", "", "", "2026-11-25T15:00:00.000Z", ""],
     ]);
     expect(out.redemptions).toEqual([
-      ["redemption_id", "member_id", "reward_id", "cost", "state", "created_at"],
-      ["r1", "ana", "rw1", "2", "approved", "2020-05-05T15:00:00.000Z"],
+      ["redemption_id", "member_id", "reward_id", "cost", "state", "created_at", "quantity"],
+      ["r1", "ana", "rw1", "2", "approved", "2020-05-05T15:00:00.000Z", "1"], // S2: rows without a quantity are one unit
+      ["r2", "ana", "rw1", "6", "pending", "2020-05-06T15:00:00.000Z", "3"],
     ]);
     expect(out.members).toEqual([
       ["member_id", "role", "active", "daily_limit_override"],

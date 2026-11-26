@@ -88,11 +88,18 @@ export interface Redemption {
   readonly rewardId: RewardId | null;
   readonly variantId: VariantId | null;
   readonly collabId: CollabId | null;
+  /**
+   * S2 (launch polish): units of the reward in this one redemption. Absent on rows written before
+   * batch redemption; read it through redemptionQuantity(), which treats absent as 1.
+   */
+  readonly quantity?: PosInt;
+  /** The total debit: unit cost x quantity. */
   readonly cost: PosInt;
+  /** The total internal cost (unit internal cost x quantity). */
   readonly internalCost: Money | null;
   /** The "YYYY-MM" budget month the internal cost counts against; null when not budgeted. */
   readonly budgetMonth: string | null;
-  /** Whether a stock unit was reserved (and must be released on refund). */
+  /** Whether stock was reserved (quantity units, released on refund). */
   readonly stockReserved: boolean;
   readonly giftCard: boolean;
   /** S108: set once the provider issued the card. */
@@ -168,6 +175,8 @@ export interface Redeem extends CommandBase {
   readonly memberId: MemberId;
   readonly rewardId: RewardId;
   readonly variantId: VariantId | null;
+  /** S2 (launch polish): units to redeem in one step; absent means 1. */
+  readonly quantity?: number;
 }
 export interface TransitionRedemption extends CommandBase {
   readonly type: "TransitionRedemption";
@@ -262,7 +271,8 @@ export type ShopResults = {
 
 export type ShopError =
   | { readonly code: "insufficient_redeemable"; readonly cost: number; readonly redeemable: number } // S35, S50
-  | { readonly code: "out_of_stock" } // S46
+  | { readonly code: "out_of_stock"; readonly available?: number } // S46; `available` when a batch asks for more than is left
+  | { readonly code: "invalid_quantity" } // S2 batch redemption: not a positive integer, or the total is too large
   | { readonly code: "budget_exceeded"; readonly remaining: Money } // S47
   | { readonly code: "prepaid_insufficient"; readonly available: Money } // S108
   | { readonly code: "reward_not_found" }
@@ -287,6 +297,8 @@ export type ShopEvent =
       readonly rewardId: RewardId | null;
       readonly collabId: CollabId | null;
       readonly cost: number;
+      /** S2: units in the redemption (1 for rows written before batch redemption). */
+      readonly quantity: number;
       readonly notify: readonly MemberId[];
     }
   | { readonly type: "collab.contributed"; readonly collabId: CollabId; readonly memberId: MemberId; readonly amount: number; readonly raised: number; readonly goal: number } // S56
@@ -300,8 +312,8 @@ export type ShopWrite =
   | { readonly t: "shop.reward.status"; readonly rewardId: RewardId; readonly from: RewardStatus; readonly to: RewardStatus }
   /** Field edit; CAS on the status it was decided against (an archived reward is never edited). */
   | { readonly t: "shop.reward.update"; readonly from: RewardStatus; readonly reward: Reward }
-  /** Conditional decrement: fails the transaction when stock is 0. */
-  | { readonly t: "shop.stock.take"; readonly rewardId: RewardId; readonly variantId: VariantId | null }
+  /** Conditional decrement by `quantity` (absent = 1): fails the transaction when less stock is left. */
+  | { readonly t: "shop.stock.take"; readonly rewardId: RewardId; readonly variantId: VariantId | null; readonly quantity?: number }
   | { readonly t: "shop.stock.add"; readonly rewardId: RewardId; readonly variantId: VariantId | null; readonly quantity: number }
   /** `from` null = insert (must not exist); otherwise CAS on the current state. */
   | { readonly t: "shop.redemption.put"; readonly from: RedemptionState | null; readonly redemption: Redemption }

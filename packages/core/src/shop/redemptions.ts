@@ -1,5 +1,5 @@
 // S35, S46-S55, S108: redemptions as pure deciders. Docs: docs/statecharts/redemption.
-import { isPosInt, type Instant, type MemberId } from "../shared/types.ts";
+import { isEntryAmount, isPosInt, type Instant, type MemberId, type PosInt } from "../shared/types.ts";
 import type { MemberRecord } from "../members/members.ts";
 import type { PlanState } from "../billing/index.ts";
 import type { NewEntry } from "../ledger/entries.ts";
@@ -39,8 +39,11 @@ export interface RedeemSnapshot {
   readonly plan?: PlanState | null;
 }
 
+/** S2: units in a redemption; rows written before batch redemption carry none and are one unit. */
+export const redemptionQuantity = (r: Pick<Redemption, "quantity">): PosInt => r.quantity ?? (1 as PosInt);
+
 export function redemptionEvent(type: RedemptionEventType, r: Redemption, notify: readonly MemberId[]): ShopEvent {
-  return { type, redemptionId: r.id, rewardId: r.rewardId, collabId: r.collabId, cost: r.cost, notify };
+  return { type, redemptionId: r.id, rewardId: r.rewardId, collabId: r.collabId, cost: r.cost, quantity: redemptionQuantity(r), notify };
 }
 
 /** Who redeems: the member for themselves, an admin on their behalf (S55), or an API token / job. */
@@ -71,6 +74,7 @@ export function planLimitReject<T>(plan: PlanState | null | undefined): ShopDeci
 /**
  * S50: check redeemable >= cost (S35), stock (S46), budget (S47) and prepaid balance (S108);
  * then debit, reserve stock and create the redemption in one decision.
+ * S2 (batch): every check counts the whole quantity; one redemption, one debit, one approval.
  * S52: auto-approval skips pending; S55: an admin's manual redemption is approved by its maker;
  * S108: an approved gift card is fulfilled at once.
  */
@@ -86,10 +90,14 @@ export function decideRedeem(s: RedeemSnapshot, cmd: Redeem, now: Instant): Shop
   if (reward.status !== "active") return shopReject({ code: "reward_not_active" });
   const slot = stockOf(reward, cmd.variantId);
   if (!slot.ok) return shopReject({ code: "invalid_variant" });
+  const quantity = cmd.quantity ?? 1;
+  const cost = reward.cost * quantity;
+  if (!isPosInt(quantity) || !isEntryAmount(cost)) return shopReject({ code: "invalid_quantity" });
   if (slot.stock !== null && slot.stock <= 0) return shopReject({ code: "out_of_stock" });
-  if (s.redeemable < reward.cost) return shopReject({ code: "insufficient_redeemable", cost: reward.cost, redeemable: s.redeemable });
+  if (slot.stock !== null && slot.stock < quantity) return shopReject({ code: "out_of_stock", available: slot.stock });
+  if (s.redeemable < cost) return shopReject({ code: "insufficient_redeemable", cost, redeemable: s.redeemable });
 
-  const money = reward.internalCost;
+  const money = reward.internalCost === null ? null : { minor: reward.internalCost.minor * quantity, currency: reward.internalCost.currency };
   const budget = s.settings.monthlyBudget;
   const budgeted = budget !== null && money !== null;
   if (budgeted && s.budgetSpent + money.minor > budget.minor) {
@@ -108,7 +116,8 @@ export function decideRedeem(s: RedeemSnapshot, cmd: Redeem, now: Instant): Shop
     rewardId: reward.id,
     variantId: cmd.variantId,
     collabId: null,
-    cost: reward.cost,
+    quantity,
+    cost,
     internalCost: money,
     budgetMonth: budgeted ? s.budgetMonth : null,
     stockReserved: slot.stock !== null,
@@ -121,15 +130,16 @@ export function decideRedeem(s: RedeemSnapshot, cmd: Redeem, now: Instant): Shop
     reason: null,
   };
   const writes: ShopWrite[] = [];
-  if (redemption.stockReserved) writes.push({ t: "shop.stock.take", rewardId: reward.id, variantId: cmd.variantId });
+  // A single unit keeps the original write shape; a batch takes all its units in one conditional decrement.
+  if (redemption.stockReserved) writes.push({ t: "shop.stock.take", rewardId: reward.id, variantId: cmd.variantId, ...(quantity === 1 ? {} : { quantity }) });
   writes.push({ t: "shop.redemption.put", from: null, redemption });
   const notify = [cmd.memberId];
   const events: ShopEvent[] = [redemptionEvent("redemption.created", redemption, notify)];
   if (approved) events.push(redemptionEvent("redemption.approved", redemption, notify));
   if (state === "fulfilled") events.push(redemptionEvent("redemption.fulfilled", redemption, notify));
   return shopAccept(
-    { redemptionId: redemption.id, state, cost: reward.cost, redeemable: s.redeemable - reward.cost },
-    { entries: [shopEntry("spend", cmd.memberId, reward.cost, { type: "redemption", redemptionId: redemption.id }, reward.title)], writes, events },
+    { redemptionId: redemption.id, state, cost, redeemable: s.redeemable - cost },
+    { entries: [shopEntry("spend", cmd.memberId, cost, { type: "redemption", redemptionId: redemption.id }, reward.title)], writes, events },
   );
 }
 
@@ -153,7 +163,7 @@ export function collabRefunds(collabId: string, contributions: ReadonlyMap<Membe
 
 /**
  * S49: approve | reject | cancel | fulfil along REDEMPTION_EDGES only.
- * S51: reject/cancel refund the full cost and release stock in the same decision.
+ * S51: reject/cancel refund the full cost and release stock in the same decision (S2: all N units).
  * S53: fulfilling a fulfilled redemption is a no-op. S54: every change emits its event.
  * S57/S58: a group redemption refunds every contributor and moves the collab.
  * S108: approving a gift card fulfils it.
@@ -176,7 +186,7 @@ export function decideTransition(s: TransitionSnapshot, cmd: TransitionRedemptio
 
   if (to === "rejected" || to === "cancelled") {
     if (r.memberId !== null) entries.push(shopEntry("refund", r.memberId, r.cost, { type: "redemption", redemptionId: r.id }, cmd.reason));
-    if (r.stockReserved && r.rewardId !== null) writes.push({ t: "shop.stock.add", rewardId: r.rewardId, variantId: r.variantId, quantity: 1 });
+    if (r.stockReserved && r.rewardId !== null) writes.push({ t: "shop.stock.add", rewardId: r.rewardId, variantId: r.variantId, quantity: redemptionQuantity(r) });
     if (group !== null) {
       entries.push(...collabRefunds(group.id, s.contributions, cmd.reason));
       writes.push({ t: "shop.collab.put", from: group.phase, collab: { ...group, phase: "refunded" } });

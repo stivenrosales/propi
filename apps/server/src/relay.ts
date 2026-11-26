@@ -9,6 +9,7 @@ import {
   createWebhookRelay,
   nodeCrypto,
   questCommandsForEvent,
+  redemptionQuantity,
   type CommandKey,
   type DomainEvent,
   type MemberId,
@@ -92,11 +93,11 @@ export async function slackDeliveriesFor(d: Pick<RelayDeps, "rt">, ev: OutboxEve
     case "redemption.fulfilled": {
       const reward = event.rewardId === null ? null : await shop().reward(event.rewardId);
       const title = reward?.title ?? null;
-      const out = event.notify.map((to) => dm(to, redemptionMessage({ type: event.type, cost: event.cost, rewardTitle: title }, ctx)));
+      const out = event.notify.map((to) => dm(to, redemptionMessage({ type: event.type, cost: event.cost, quantity: event.quantity, rewardTitle: title }, ctx)));
       if (event.type === "redemption.created") {
         const r = await shop().redemption(event.redemptionId);
         if (r?.state === "pending") {
-          for (const to of await approvers()) out.push(dm(to, redemptionApprovalMessage({ redemptionId: r.id, member: r.memberId, rewardTitle: title, cost: r.cost }, ctx)));
+          for (const to of await approvers()) out.push(dm(to, redemptionApprovalMessage({ redemptionId: r.id, member: r.memberId, rewardTitle: title, cost: r.cost, quantity: redemptionQuantity(r) }, ctx)));
         }
       }
       return out;

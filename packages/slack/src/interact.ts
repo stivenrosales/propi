@@ -7,6 +7,8 @@ import type { SlackBlockAction, SlackLookup, SlackSlashCommand } from "./types.t
 
 export const ACTIONS = {
   redeem: "propi_redeem",
+  /** S2: the "Redeem more" picker; each option is `<redeemValue>#<quantity>`. */
+  redeemQuantity: "propi_redeem_quantity",
   approveRedemption: "propi_redemption_approve",
   rejectRedemption: "propi_redemption_reject",
   fulfilRedemption: "propi_redemption_fulfil",
@@ -59,6 +61,8 @@ export async function stickerCommand(lookup: SlackLookup, ws: WorkspaceId, actor
 
 /** Redeem button values carry the reward and, for a variant, `<rewardId>|<variantId>`. */
 export const redeemValue = (rewardId: string, variantId: string | null) => (variantId === null ? rewardId : `${rewardId}|${variantId}`);
+/** S2: a quantity picker option: the redeem value plus `#<quantity>`. */
+export const redeemQuantityValue = (rewardId: string, variantId: string | null, quantity: number) => `${redeemValue(rewardId, variantId)}#${quantity}`;
 
 export type ActionCommand = Redeem | TransitionRedemption | ReviewSubmission;
 
@@ -70,13 +74,22 @@ export function actionCommand(payload: SlackBlockAction, ws: WorkspaceId, actor:
   const action = payload.actions[0];
   const team = payload.team?.id ?? payload.user.team_id ?? "";
   const user = payload.user.id;
-  if (action === undefined || action.value === undefined) return null;
+  const value = action?.value ?? action?.selected_option?.value;
+  if (action === undefined || value === undefined) return null;
   const base = { workspaceId: ws, actor, at: now };
   switch (action.action_id) {
     case ACTIONS.redeem: {
       if (actor.kind !== "member") return null;
-      const [rewardId = "", variantId = null] = action.value.split("|");
+      const [rewardId = "", variantId = null] = value.split("|");
       return { type: "Redeem", key: slackKeys.redeem(team, user, action.action_ts) as CommandKey, ...base, memberId: actor.memberId as MemberId, rewardId, variantId };
+    }
+    case ACTIONS.redeemQuantity: {
+      // Core validates the quantity (S2); a malformed option becomes a refused Redeem, not a crash.
+      if (actor.kind !== "member") return null;
+      const cut = value.lastIndexOf("#");
+      const [rewardId = "", variantId = null] = (cut < 0 ? value : value.slice(0, cut)).split("|");
+      const quantity = cut < 0 ? 1 : Number(value.slice(cut + 1));
+      return { type: "Redeem", key: slackKeys.redeem(team, user, action.action_ts) as CommandKey, ...base, memberId: actor.memberId as MemberId, rewardId, variantId, quantity };
     }
     case ACTIONS.approveRedemption:
     case ACTIONS.rejectRedemption:
@@ -84,9 +97,9 @@ export function actionCommand(payload: SlackBlockAction, ws: WorkspaceId, actor:
       const transition = action.action_id === ACTIONS.approveRedemption ? "approve" : action.action_id === ACTIONS.rejectRedemption ? "reject" : "fulfil";
       return {
         type: "TransitionRedemption",
-        key: slackKeys.review(team, user, "redemption", action.value, transition) as CommandKey,
+        key: slackKeys.review(team, user, "redemption", value, transition) as CommandKey,
         ...base,
-        redemptionId: action.value,
+        redemptionId: value,
         transition,
         reason: null,
       };
@@ -96,9 +109,9 @@ export function actionCommand(payload: SlackBlockAction, ws: WorkspaceId, actor:
       const verdict = action.action_id === ACTIONS.approveSubmission ? "approve" : "reject";
       return {
         type: "ReviewSubmission",
-        key: slackKeys.review(team, user, "submission", action.value, verdict) as CommandKey,
+        key: slackKeys.review(team, user, "submission", value, verdict) as CommandKey,
         ...base,
-        submissionId: action.value,
+        submissionId: value,
         verdict,
         amount: null,
         note: null,

@@ -16,6 +16,7 @@ import {
   STICKERS_OFF,
   budgetSpent,
   prepaidReserved,
+  redemptionQuantity,
   type AwardRule,
   type Collab,
   type GiftCardProvider,
@@ -111,7 +112,8 @@ const toReward = (r: RewardRow): Reward => ({
   createdAt: r.created_at.getTime() as Reward["createdAt"],
 });
 
-const toRedemption = (r: { data: Redemption; state: Redemption["state"] }): Redemption => ({ ...r.data, state: r.state });
+/** S2: rows written before batch redemption carry no quantity in `data`; they read as one unit. */
+const toRedemption = (r: { data: Redemption; state: Redemption["state"] }): Redemption => ({ ...r.data, quantity: redemptionQuantity(r.data), state: r.state });
 const toCollab = (r: { data: Collab; phase: Collab["phase"] }): Collab => ({ ...r.data, phase: r.phase });
 
 export function shopReader(db: Sql, ws: WorkspaceId, giftCards: GiftCardProvider | null): ShopReader {
@@ -175,8 +177,8 @@ const rewardData = (r: Reward) => {
 };
 
 async function bumpStock(db: Sql, ws: WorkspaceId, w: Extract<ShopWrite, { t: "shop.stock.take" | "shop.stock.add" }>): Promise<void> {
-  const delta = w.t === "shop.stock.take" ? -1 : w.quantity;
-  // NULL stock is unlimited and stays NULL; a take on 0 changes no row (the conditional decrement).
+  const delta = w.t === "shop.stock.take" ? -(w.quantity ?? 1) : w.quantity;
+  // NULL stock is unlimited and stays NULL; a take of more than is left changes no row (the conditional decrement).
   const changed =
     w.variantId === null
       ? await db.$executeRaw`

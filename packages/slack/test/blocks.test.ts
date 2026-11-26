@@ -1,7 +1,7 @@
 // Block Kit rendering (S1, S13, S28, S29, S48, S54, S83, S86): pure data → Slack JSON.
 import { describe, expect, test } from "vitest";
 import type { MemberId, PosInt, Reward } from "@propi/app";
-import { errorText, homeView, notificationMessage, redemptionApprovalMessage, shopBlocks, type RenderContext } from "../src/index.ts";
+import { errorText, homeView, notificationMessage, redemptionApprovalMessage, redemptionMessage, shopBlocks, type RenderContext } from "../src/index.ts";
 import { settings } from "./lookup.ts";
 
 const ctx: RenderContext = { currency: settings().currency, who: (m) => (m === "ana" ? "<@U0ANA00001>" : "a teammate"), appUrl: "https://propi.example" };
@@ -103,6 +103,37 @@ describe("shop and App Home", () => {
     const msg = redemptionApprovalMessage({ redemptionId: "r-1", member: m("ana"), rewardTitle: "Mug", cost: 3 }, ctx);
     expect(msg.text).toBe("<@U0ANA00001> redeemed *Mug* for :taco: 3 tacos.");
     expect(msg.blocks[1]).toMatchObject({ type: "actions", elements: [{ action_id: "propi_redemption_approve", value: "r-1" }, { action_id: "propi_redemption_reject", value: "r-1" }] });
+  });
+});
+
+describe("S2 batch redemption in Slack", () => {
+  test("S2: an affordable reward with room for more units gets a quantity picker with the total per option", () => {
+    const blocks = shopBlocks([reward({ stock: 4 })], 9, ctx);
+    const actions = blocks[1] as unknown as { elements: Record<string, unknown>[] };
+    expect(actions.elements[0]).toMatchObject({ type: "button", action_id: "propi_redeem", value: "reward-mug" });
+    expect(actions.elements[1]).toMatchObject({
+      type: "static_select",
+      action_id: "propi_redeem_quantity",
+      placeholder: { type: "plain_text", text: "Redeem more" },
+      options: [
+        { text: { type: "plain_text", text: "2 × Mug · 6 tacos" }, value: "reward-mug#2" },
+        { text: { type: "plain_text", text: "3 × Mug · 9 tacos" }, value: "reward-mug#3" },
+      ],
+      confirm: { type: "confirm" },
+    });
+  });
+
+  test("S2: the picker caps at stock and at 10 units; variants get their own options", () => {
+    const cap = shopBlocks([reward({ stock: null, cost: 1 as PosInt })], 50, ctx)[1] as unknown as { elements: { options?: { value: string }[] }[] };
+    expect(cap.elements[1]?.options?.map((o) => o.value).at(-1)).toBe("reward-mug#10");
+    const v = shopBlocks([reward({ variants: [{ id: "s", name: "S", stock: 2 }, { id: "l", name: "L", stock: 1 }] })], 9, ctx)[1] as unknown as { elements: { options?: { value: string; text: { text: string } }[] }[] };
+    expect(v.elements.at(-1)?.options?.map((o) => [o.value, o.text.text])).toEqual([["reward-mug|s#2", "2 × Mug (S) · 6 tacos"]]);
+  });
+
+  test("S2: notices and approval requests show the quantity; one unit reads as before", () => {
+    expect(redemptionMessage({ type: "redemption.created", cost: 9, quantity: 3, rewardTitle: "Mug" }, ctx).text).toBe("You redeemed *3 × Mug* for :taco: 9 tacos. We'll let you know when it's approved.");
+    expect(redemptionMessage({ type: "redemption.created", cost: 3, quantity: 1, rewardTitle: "Mug" }, ctx).text).toBe("You redeemed *Mug* for :taco: 3 tacos. We'll let you know when it's approved.");
+    expect(redemptionApprovalMessage({ redemptionId: "r-1", member: m("ana"), rewardTitle: "Mug", cost: 9, quantity: 3 }, ctx).text).toBe("<@U0ANA00001> redeemed *3 × Mug* for :taco: 9 tacos.");
   });
 });
 

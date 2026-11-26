@@ -174,6 +174,23 @@ describe("S100: idempotency keys", () => {
 });
 
 describe("S99: webhooks", () => {
+  test("S2: a batch redemption's webhook payload carries the quantity and the total cost", async () => {
+    const s = apiSetup();
+    s.stores.endpoints.add({ id: "ep1", workspaceId: WS, url: "https://hooks.example/propi", secret: "whsec_1", events: ["redemption.created"], active: true });
+    const base = (k: string) => ({ key: `test:${k}` as never, workspaceId: WS, at: T0 });
+    const admin = { kind: "member", memberId: "boss" as MemberId, role: "admin" } as const;
+    const reward = await s.app.execute({ ...base("reward"), actor: admin, type: "CreateReward", reward: { title: "Mug", description: "", image: null, cost: 10, stock: null, variants: [], categories: [], internalCost: null, instructions: "", autoApprove: false, giftCard: false } });
+    if (!reward.ok) throw new Error(JSON.stringify(reward.error));
+    await s.app.execute({ ...base("activate"), actor: admin, type: "SetRewardStatus", rewardId: reward.value.rewardId, status: "active" });
+    await s.app.execute({ ...base("fund"), actor: admin, type: "GrantBonus", memberIds: ["ana" as MemberId], amount: 30 as never, reason: "fund" });
+    const ana = { kind: "member", memberId: "ana" as MemberId, role: "member" } as const;
+    const r = await s.app.execute({ ...base("redeem"), actor: ana, type: "Redeem", memberId: "ana" as MemberId, rewardId: reward.value.rewardId, variantId: null, quantity: 3 });
+    expect(r).toMatchObject({ ok: true, value: { cost: 30 } });
+    await s.relay.tick(WS);
+    const [req] = s.stores.transport.requests;
+    expect((JSON.parse(req!.body) as WebhookPayload).data).toMatchObject({ redemptionId: r.ok ? r.value.redemptionId : "", cost: 30, quantity: 3 });
+  });
+
   test("S99: node:crypto implements the Crypto port (RFC 4231 HMAC-SHA256 vector)", () => {
     expect(nodeCrypto.hmacSha256Hex("Jefe", "what do ya want for nothing?")).toBe("5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
     expect(nodeCrypto.sha256Hex("abc")).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");

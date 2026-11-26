@@ -7,6 +7,7 @@ import {
   budgetSpent,
   isShopWrite,
   prepaidReserved,
+  redemptionQuantity,
   type Collab,
   type GiftCardProvider,
   type Money,
@@ -16,6 +17,9 @@ import {
   type ShopSettings,
   type ShopWrite,
 } from "../shop/core.ts";
+
+/** S2: rows stored before batch redemption carry no quantity and read as one unit (as the Postgres adapter does). */
+const withQuantity = (r: Redemption): Redemption => ({ ...r, quantity: redemptionQuantity(r) });
 
 /** What the shop store wraps: memory ports plus a synchronous view of the ledger. */
 export interface ShopStoreBase {
@@ -61,7 +65,7 @@ function apply(s: ShopState, w: ShopWrite): () => void {
     case "shop.stock.add": {
       const prev = s.rewards.get(w.rewardId);
       if (prev === undefined) throw new Error(`reward ${w.rewardId} not found`);
-      const delta = w.t === "shop.stock.take" ? -1 : w.quantity;
+      const delta = w.t === "shop.stock.take" ? -(w.quantity ?? 1) : w.quantity;
       const bump = (stock: number | null): number | null => {
         if (stock === null) return null;
         if (stock + delta < 0) throw new Error(`reward ${w.rewardId} is out of stock`); // the conditional decrement
@@ -145,11 +149,12 @@ export function withShopStore(mem: ShopStoreBase, opts: ShopStoreOptions = {}) {
       },
       async redemption(id) {
         await yieldNow();
-        return s().redemptions.get(id) ?? null;
+        const r = s().redemptions.get(id);
+        return r === undefined ? null : withQuantity(r);
       },
       async redemptions() {
         await yieldNow();
-        return [...s().redemptions.values()];
+        return [...s().redemptions.values()].map(withQuantity);
       },
       async budgetSpent(month) {
         await yieldNow();
