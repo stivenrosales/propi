@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text, labels }: { text: string; labels: { copy: string; copied: string } }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -21,7 +21,7 @@ export function CopyButton({ text }: { text: string }) {
       onClick={copy}
       className="rounded-full border-2 border-cream/30 px-3 py-1 text-xs font-semibold text-cream transition-colors hover:border-sunflower hover:text-sunflower"
     >
-      <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
+      <span aria-live="polite">{copied ? labels.copied : labels.copy}</span>
     </button>
   );
 }

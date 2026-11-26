@@ -4,8 +4,11 @@ import { Coin } from "@/components/ui/primitives";
 import wave from "../../../public/brand/mascot-wave.webp";
 import thumbs from "../../../public/brand/mascot-thumbs-up.webp";
 import gift from "../../../public/brand/mascot-gift.webp";
+import { getLocale } from "@/i18n/locale";
+import { landing } from "@/i18n/landing.messages";
 
 type Step = {
+  id: string;
   title: string;
   body: string;
   mascot: StaticImageData;
@@ -14,79 +17,85 @@ type Step = {
   demo: ReactNode;
 };
 
-const steps: Step[] = [
-  {
-    title: "Give props in Slack",
-    body: "Mention a teammate, add the emoji, say why. Mention three people and each one gets the full amount.",
-    mascot: wave,
-    mascotAlt: "Propi coin mascot waving hello",
-    tint: "bg-sunflower-soft",
-    demo: (
-      <p className="text-[0.95rem] leading-snug">
-        <span className="rounded bg-coral-soft px-1 font-medium">@ana</span>{" "}
-        <span className="rounded bg-coral-soft px-1 font-medium">@diana</span> great demo today <Coin /> <Coin />
-      </p>
-    ),
-  },
-  {
-    title: "It lands in the ledger",
-    body: "Every change is an append-only entry with who, why and when. Balances are rebuilt from it, so nothing quietly drifts.",
-    mascot: thumbs,
-    mascotAlt: "Propi coin mascot giving a thumbs up",
-    tint: "bg-mint-soft",
-    demo: (
-      <table className="w-full text-left text-sm tabular-nums">
-        <caption className="sr-only">Example ledger entries</caption>
-        <thead className="sr-only">
-          <tr>
-            <th scope="col">Entry</th>
-            <th scope="col">Amount</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y-2 divide-dashed divide-line">
-          {[
-            ["gift from Jo", "+3"],
-            ["bonus · onboarding", "+5"],
-            ["redemption · team lunch", "−12"],
-          ].map(([label, amount]) => (
-            <tr key={label}>
-              <td className="py-1.5 text-ink-muted">{label}</td>
-              <td
-                className={`py-1.5 text-right font-display font-black ${amount?.startsWith("+") ? "text-ink" : "text-ink-soft"}`}
-              >
-                {amount}
-              </td>
+function steps(t: ReturnType<typeof landing.t>): Step[] {
+  return [
+    {
+      id: "give",
+      title: t("how.give.title"),
+      body: t("how.give.body"),
+      mascot: wave,
+      mascotAlt: t("how.give.alt"),
+      tint: "bg-sunflower-soft",
+      demo: (
+        <p className="text-[0.95rem] leading-snug">
+          <span className="rounded bg-coral-soft px-1 font-medium">@ana</span>{" "}
+          <span className="rounded bg-coral-soft px-1 font-medium">@diana</span> {t("how.give.demo")} <Coin /> <Coin />
+        </p>
+      ),
+    },
+    {
+      id: "ledger",
+      title: t("how.ledger.title"),
+      body: t("how.ledger.body"),
+      mascot: thumbs,
+      mascotAlt: t("how.ledger.alt"),
+      tint: "bg-mint-soft",
+      demo: (
+        <table className="w-full text-left text-sm tabular-nums">
+          <caption className="sr-only">{t("how.ledger.caption")}</caption>
+          <thead className="sr-only">
+            <tr>
+              <th scope="col">{t("how.ledger.entry")}</th>
+              <th scope="col">{t("how.ledger.amount")}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    ),
-  },
-  {
-    title: "Redeem in your team's shop",
-    body: "Spend props on rewards your team picks, right from Slack or the web. Admins approve, and a rejection refunds in full.",
-    mascot: gift,
-    mascotAlt: "Propi coin mascot holding a gift box",
-    tint: "bg-coral-soft",
-    demo: (
-      <ol className="flex flex-wrap items-center gap-1.5 text-xs font-semibold" aria-label="Redemption states">
-        <li className="rounded-full border-2 border-ink bg-cream px-2.5 py-1">pending</li>
-        <li aria-hidden="true">→</li>
-        <li className="rounded-full border-2 border-ink bg-sunflower px-2.5 py-1">approved</li>
-        <li aria-hidden="true">→</li>
-        <li className="rounded-full border-2 border-ink bg-mint px-2.5 py-1">fulfilled</li>
-      </ol>
-    ),
-  },
-];
+          </thead>
+          <tbody className="divide-y-2 divide-dashed divide-line">
+            {[
+              [t("how.ledger.gift"), "+3"],
+              [t("how.ledger.bonus"), "+5"],
+              [t("how.ledger.redemption"), "−12"],
+            ].map(([label, amount]) => (
+              <tr key={label}>
+                <td className="py-1.5 text-ink-muted">{label}</td>
+                <td
+                  className={`py-1.5 text-right font-display font-black ${amount?.startsWith("+") ? "text-ink" : "text-ink-soft"}`}
+                >
+                  {amount}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ),
+    },
+    {
+      id: "shop",
+      title: t("how.shop.title"),
+      body: t("how.shop.body"),
+      mascot: gift,
+      mascotAlt: t("how.shop.alt"),
+      tint: "bg-coral-soft",
+      demo: (
+        <ol className="flex flex-wrap items-center gap-1.5 text-xs font-semibold" aria-label={t("how.shop.states")}>
+          <li className="rounded-full border-2 border-ink bg-cream px-2.5 py-1">{t("how.shop.pending")}</li>
+          <li aria-hidden="true">→</li>
+          <li className="rounded-full border-2 border-ink bg-sunflower px-2.5 py-1">{t("how.shop.approved")}</li>
+          <li aria-hidden="true">→</li>
+          <li className="rounded-full border-2 border-ink bg-mint px-2.5 py-1">{t("how.shop.fulfilled")}</li>
+        </ol>
+      ),
+    },
+  ];
+}
 
-export function HowItWorks() {
+export async function HowItWorks() {
+  const t = landing.t(await getLocale());
   return (
     <section id="how-it-works" aria-labelledby="how-title" className="relative py-24 sm:py-32">
       <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-10">
         <div className="max-w-2xl">
           <h2 id="how-title" className="font-display text-[clamp(2.25rem,1.5rem+3vw,3.75rem)] leading-[0.98] font-black tracking-[-0.03em] text-balance">
-            From a thank-you to a reward in three moves.
+            {t("how.title")}
           </h2>
         </div>
 
@@ -109,9 +118,9 @@ export function HowItWorks() {
             />
           </svg>
 
-          {steps.map((step, i) => (
+          {steps(t).map((step, i) => (
             <li
-              key={step.title}
+              key={step.id}
               className={`reveal relative ${i === 1 ? "md:mt-16" : ""} ${i === 2 ? "md:mt-32" : ""}`}
             >
               <div className="relative flex items-end gap-4">
@@ -132,7 +141,7 @@ export function HowItWorks() {
                 </span>
               </div>
               <h3 className="mt-7 font-display text-2xl font-black tracking-tight sm:text-[1.7rem]">
-                <span className="sr-only">Step {i + 1}: </span>
+                <span className="sr-only">{t("how.step", { n: String(i + 1) })} </span>
                 {step.title}
               </h3>
               <p className="mt-3 max-w-[34ch] leading-relaxed text-ink-muted">{step.body}</p>

@@ -1,12 +1,15 @@
 import Image from "next/image";
 import { site } from "@/content/site";
 import { ButtonLink, GitHubIcon } from "@/components/ui/primitives";
+import { getLocale } from "@/i18n/locale";
+import { landing } from "@/i18n/landing.messages";
 import { CopyButton } from "./copy-button";
 import thumbs from "../../../public/brand/mascot-thumbs-up.webp";
 
 const commands = [`git clone ${site.github}.git`, "cd propi", "docker compose up -d"];
 
-export function SelfHost() {
+export async function SelfHost() {
+  const t = landing.t(await getLocale());
   return (
     <section id="self-host" aria-labelledby="self-host-title" className="relative overflow-hidden bg-ink py-24 text-cream sm:py-32">
       <span id="install" className="absolute top-0" aria-hidden="true" />
@@ -16,19 +19,18 @@ export function SelfHost() {
             id="self-host-title"
             className="font-display text-[clamp(2.25rem,1.5rem+3vw,3.75rem)] leading-[1.02] font-black tracking-[-0.03em] text-balance"
           >
-            Open source. <span className="text-sunflower">Yours</span> to run.
+            {t("selfHost.title.1")} <span className="text-sunflower">{t("selfHost.title.2")}</span> {t("selfHost.title.3")}
           </h2>
           <p className="mt-6 max-w-[44ch] text-lg leading-[1.7] text-cream/80">
-            Clone the repo, start the stack, connect your Slack workspace. Every balance lives in your own Postgres
-            database.
+            {t("selfHost.lead")}
           </p>
           <p className="mt-4 max-w-[44ch] leading-[1.7] text-cream/70">
-            Propi is in active development. Star the repo to follow along, open an issue, or send a pull request.
+            {t("selfHost.status")}
           </p>
           <div className="mt-9">
             <ButtonLink href={site.github} tone="coral">
               <GitHubIcon className="size-5" />
-              Star on GitHub
+              {t("selfHost.star")}
             </ButtonLink>
           </div>
         </div>
@@ -47,8 +49,8 @@ export function SelfHost() {
                 <span className="size-3 rounded-full bg-sunflower" />
                 <span className="size-3 rounded-full bg-mint" />
               </div>
-              <figcaption className="text-xs font-medium text-cream/60">Terminal</figcaption>
-              <CopyButton text={commands.join("\n")} />
+              <figcaption className="text-xs font-medium text-cream/60">{t("selfHost.terminal")}</figcaption>
+              <CopyButton text={commands.join("\n")} labels={{ copy: t("selfHost.copy"), copied: t("selfHost.copied") }} />
             </div>
             <pre className="overflow-x-auto px-5 py-6 text-[0.9rem] leading-[1.9] sm:px-7 sm:text-base">
               <code>

@@ -1,23 +1,21 @@
+import type { Metadata } from "next";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { rich } from "@/components/marketing/rich-text";
 import { SlackIcon } from "@/components/ui/primitives";
 import { site } from "@/content/site";
 import { memberLabel } from "@/lib/format";
 import { devLoginEnabled, slackOidc } from "@/server/env";
 import { propi } from "@/server/propi";
+import { getLocale } from "@/i18n/locale";
+import { SIGNIN_ERRORS, signin } from "@/i18n/signin.messages";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Sign in" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: signin.t(await getLocale())("meta.title") };
+}
 
-const ERRORS: Record<string, string> = {
-  slack_not_configured: "Sign in with Slack is not configured on this server yet.",
-  slack_denied: "Slack sign-in was cancelled.",
-  invalid_state: "That sign-in link expired. Please try again.",
-  workspace_not_installed: "Propi isn't installed in this Slack workspace yet.",
-  install_cancelled: "Adding Propi to Slack was cancelled.",
-  install_failed: "Propi could not be added to Slack. Please try again.",
-  identity_not_linked: "Your Slack account is not linked to a Propi member yet. Say hi to Propi in Slack first, or ask an admin.",
-  inactive_member: "Your Propi membership is deactivated. Ask an admin to reactivate it.",
-};
+const isSigninError = (code: string): code is (typeof SIGNIN_ERRORS)[number] => (SIGNIN_ERRORS as readonly string[]).includes(code);
+
 
 async function devMembers() {
   const p = propi();
@@ -34,7 +32,8 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
   const sp = await searchParams;
   const slack = slackOidc() !== null;
   const dev = devLoginEnabled() ? await devMembers() : null;
-  const error = sp.error ? (ERRORS[sp.error] ?? "Sign-in failed. Please try again.") : null;
+  const t = signin.t(await getLocale());
+  const error = sp.error ? (isSigninError(sp.error) ? t(`error.${sp.error}`) : t("error.unknown")) : null;
   // S5: a team without an installation is offered the install right here.
   const notInstalled = sp.error === "workspace_not_installed";
   return (
@@ -45,12 +44,12 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
         </a>
         <div className="relative rounded-[2rem] border-2 border-ink bg-white p-7 shadow-chunky">
           <img src="/brand/mascot-wave.webp" alt="" className="bob absolute -top-14 right-2 w-24 sm:-right-6" />
-          <h1 className="font-display text-3xl font-black tracking-tight">Welcome back</h1>
-          <p className="mt-2 text-ink-soft">Sign in with the Slack account you use with Propi.</p>
+          <h1 className="font-display text-3xl font-black tracking-tight">{t("title")}</h1>
+          <p className="mt-2 text-ink-soft">{t("lead")}</p>
           {error ? <p role="alert" className="mt-4 rounded-2xl bg-coral-soft px-4 py-3 text-sm font-semibold">{error}</p> : null}
           {sp.installed ? (
             <p role="status" className="mt-4 rounded-2xl bg-sunflower/40 px-4 py-3 text-sm font-semibold">
-              Propi is installed in your Slack workspace. Sign in with Slack to open your dashboard.
+              {t("installed")}
             </p>
           ) : null}
           {notInstalled ? (
@@ -59,7 +58,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
               aria-disabled={!slack}
               className={`lift mt-6 flex min-h-12 items-center justify-center gap-3 rounded-full border-2 border-ink bg-coral px-6 font-display text-lg font-extrabold text-ink shadow-sticker ${slack ? "" : "pointer-events-none opacity-50"}`}
             >
-              <SlackIcon /> Add to Slack
+              <SlackIcon /> {t("addToSlack")}
             </a>
           ) : null}
           <a
@@ -67,25 +66,25 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
             aria-disabled={!slack}
             className={`lift mt-6 flex min-h-12 items-center justify-center gap-3 rounded-full border-2 border-ink bg-ink px-6 font-display text-lg font-extrabold text-cream shadow-sticker ${slack ? "" : "pointer-events-none opacity-50"}`}
           >
-            <SlackIcon /> Sign in with Slack
+            <SlackIcon /> {t("signInWithSlack")}
           </a>
           {slack && !notInstalled ? (
             <p className="mt-4 text-center text-sm text-ink-soft">
-              New to Propi?{" "}
+              {t("newPrompt")}{" "}
               <a href="/slack/install" className="font-bold text-ink underline underline-offset-4">
-                Add it to your Slack workspace
+                {t("newLink")}
               </a>
             </p>
           ) : null}
           {dev ? (
             <form action="/auth/dev" method="post" className="mt-8 border-t border-dashed border-line pt-6">
-              <p className="mb-3 font-display text-sm font-extrabold tracking-wide text-coral-ink uppercase">Dev login</p>
+              <p className="mb-3 font-display text-sm font-extrabold tracking-wide text-coral-ink uppercase">{t("dev.title")}</p>
               <input type="hidden" name="next" value={sp.next ?? "/app"} />
               {dev.length === 0 ? (
-                <p className="text-sm text-ink-soft">No workspaces yet. Run the demo seed first.</p>
+                <p className="text-sm text-ink-soft">{t("dev.empty")}</p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <select name="member" className="min-h-10 rounded-xl border border-line bg-cream/60 px-3" aria-label="Member">
+                  <select name="member" className="min-h-10 rounded-xl border border-line bg-cream/60 px-3" aria-label={t("dev.member")}>
                     {dev.flatMap((d) =>
                       d.members.map((m) => (
                         <option key={`${d.ws}:${m.id}`} value={`${d.ws}::${m.id}`}>
@@ -94,7 +93,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
                       )),
                     )}
                   </select>
-                  <button className="lift min-h-11 rounded-full border-2 border-ink bg-sunflower font-display font-extrabold shadow-sticker">Continue as this member</button>
+                  <button className="lift min-h-11 rounded-full border-2 border-ink bg-sunflower font-display font-extrabold shadow-sticker">{t("dev.continue")}</button>
                 </div>
               )}
             </form>
@@ -104,15 +103,18 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
           <LocaleSwitcher />
         </div>
         <p className="mt-4 text-center text-sm text-ink-soft">
-          By signing in you agree to the{" "}
-          <a href={site.terms} className="font-bold text-ink underline underline-offset-4">
-            Terms
-          </a>{" "}
-          and{" "}
-          <a href={site.privacy} className="font-bold text-ink underline underline-offset-4">
-            Privacy Policy
-          </a>
-          .
+          {rich(t("agree", { terms: "{terms}", privacy: "{privacy}" }), {
+            terms: (
+              <a href={site.terms} className="font-bold text-ink underline underline-offset-4">
+                {t("agree.terms")}
+              </a>
+            ),
+            privacy: (
+              <a href={site.privacy} className="font-bold text-ink underline underline-offset-4">
+                {t("agree.privacy")}
+              </a>
+            ),
+          })}
         </p>
       </div>
     </main>
