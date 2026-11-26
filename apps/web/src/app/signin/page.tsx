@@ -1,4 +1,5 @@
 import { SlackIcon } from "@/components/ui/primitives";
+import { site } from "@/content/site";
 import { memberLabel } from "@/lib/format";
 import { devLoginEnabled, slackOidc } from "@/server/env";
 import { propi } from "@/server/propi";
@@ -98,6 +99,17 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<R
             </form>
           ) : null}
         </div>
+        <p className="mt-6 text-center text-sm text-ink-soft">
+          By signing in you agree to the{" "}
+          <a href={site.terms} className="font-bold text-ink underline underline-offset-4">
+            Terms
+          </a>{" "}
+          and{" "}
+          <a href={site.privacy} className="font-bold text-ink underline underline-offset-4">
+            Privacy Policy
+          </a>
+          .
+        </p>
       </div>
     </main>
   );

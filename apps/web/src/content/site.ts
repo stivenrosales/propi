@@ -8,4 +8,7 @@ export const site = {
   github: "https://github.com/stivenrosales/propi",
   license: "https://github.com/stivenrosales/propi/blob/main/LICENSE",
   installHref: "/slack/install",
+  privacy: "/privacy",
+  terms: "/terms",
+  contactEmail: "hola@propihq.com",
 } as const;

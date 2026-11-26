@@ -23,6 +23,16 @@ export function SiteFooter() {
               Licensed AGPL-3.0
             </a>
           </li>
+          <li>
+            <a href={site.privacy} className="text-cream/85 underline-offset-4 hover:text-sunflower hover:underline">
+              Privacy
+            </a>
+          </li>
+          <li>
+            <a href={site.terms} className="text-cream/85 underline-offset-4 hover:text-sunflower hover:underline">
+              Terms
+            </a>
+          </li>
         </ul>
       </div>
     </footer>
