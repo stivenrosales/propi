@@ -8,6 +8,11 @@ export const site = {
   github: "https://github.com/stivenrosales/propi",
   license: "https://github.com/stivenrosales/propi/blob/main/LICENSE",
   installHref: "/slack/install",
+  signInHref: "/signin",
+  appHref: "/app",
+  hostedDomain: "propihq.com",
+  // Plan facts, matching the FAQ, why-propi and the terms page.
+  pricing: { freeActiveMembers: 10, proPerActiveMemberUsd: 2, billedBy: "Polar" },
   privacy: "/privacy",
   terms: "/terms",
   contactEmail: "hola@propihq.com",

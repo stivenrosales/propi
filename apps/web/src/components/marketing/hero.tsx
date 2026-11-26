@@ -43,16 +43,32 @@ export function Hero() {
             a minute, free for teams up to 10, or run it on your own servers.
           </p>
 
+          <p
+            className="rise mt-5 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl border-2 border-ink bg-mint-soft px-3.5 py-2 text-[0.95rem] font-semibold"
+            style={{ "--i": 2 } as React.CSSProperties}
+          >
+            <span className="size-2 shrink-0 rounded-full bg-mint ring-2 ring-ink" aria-hidden="true" />
+            <span>Hosted on {site.hostedDomain}</span>
+            <span aria-hidden="true" className="hidden text-ink-soft sm:inline">·</span>
+            <span className="basis-full pl-4 sm:basis-auto sm:pl-0">free up to {site.pricing.freeActiveMembers} active members</span>
+          </p>
+
           <div className="rise mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap" style={{ "--i": 3 } as React.CSSProperties}>
             <ButtonLink href={site.installHref} tone="coral">
               <SlackIcon className="size-5" />
               Add to Slack
             </ButtonLink>
-            <ButtonLink href={site.github} tone="cream">
-              <GitHubIcon className="size-5" />
-              Star on GitHub
+            <ButtonLink href={site.signInHref} tone="cream">
+              Sign in
             </ButtonLink>
           </div>
+          <p className="rise mt-4 text-[0.95rem] text-ink-muted" style={{ "--i": 3 } as React.CSSProperties}>
+            Prefer your own servers?{" "}
+            <a href="#self-host" className="inline-flex items-center gap-1.5 font-semibold text-ink underline decoration-coral decoration-2 underline-offset-4 hover:decoration-ink">
+              <GitHubIcon className="size-4" />
+              Self-host it free
+            </a>
+          </p>
 
           {/* A real-looking gift message, built from the spec's own example shape. */}
           <figure
