@@ -54,7 +54,7 @@ export const home = defineMessages(
     allowanceAria: "Asignación disponible",
     received: "Recibidos",
     receivedSub: "de tu equipo, desde siempre",
-    given: "Dados",
+    given: "Enviados",
     givenSub: "a tu equipo, desde siempre",
     history: "Mi historial",
     historyEmpty: "Todavía no hay nada aquí",

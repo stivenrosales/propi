@@ -24,7 +24,7 @@ export const shop = defineMessages(
   },
   {
     "balance.text": "Puedes canjear {spend} y dar {give} más hoy.",
-    "balance.blocks": "*Puedes canjear:* {spend}\n*Te quedan por dar hoy:* {left} de {limit}\n*Recibidos:* {received} · *Dados:* {given}",
+    "balance.blocks": "*Puedes canjear:* {spend}\n*Te quedan por dar hoy:* {left} de {limit}\n*Recibidos:* {received} · *Enviados:* {given}",
     "picker.placeholder": "Canjear más",
     "picker.title": "¿Canjear varios?",
     "picker.text": "¿Gastar el total indicado en *{title}*? Una sola aprobación cubre todas las unidades.",

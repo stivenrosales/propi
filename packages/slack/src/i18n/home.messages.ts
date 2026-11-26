@@ -31,7 +31,7 @@ export const home = defineMessages(
   {
     title: "{emoji} Tus {plural}",
     received: "*Recibidos*\n{value}",
-    given: "*Dados*\n{value}",
+    given: "*Enviados*\n{value}",
     spend: "*Puedes canjear*\n{value}",
     left: "*Te quedan por dar hoy*\n{left} de {limit}",
     level: ":star: Nivel {level} · {title}",

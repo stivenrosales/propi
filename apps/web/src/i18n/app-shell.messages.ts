@@ -147,7 +147,7 @@ export const shell = defineMessages(
     "timeframe.custom": "Rango personalizado",
     "timeframe.label": "Periodo",
     "board.received": "Recibidos",
-    "board.given": "Dados",
+    "board.given": "Enviados",
     "board.combined": "Combinado",
     apply: "Aplicar",
     save: "Guardar",
