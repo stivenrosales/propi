@@ -2,7 +2,7 @@
 // S6: admin billing actions. Both redirect to Polar; neither changes state here (webhooks do).
 // S12a: checkout is refused while the workspace already has a live subscription.
 import { redirect } from "next/navigation";
-import { canStartCheckout } from "@propi/app";
+import { canStartCheckout, type Instant } from "@propi/app";
 import { actionViewer } from "./auth";
 import { billingView } from "./billing";
 import { finish, fail } from "./command";
@@ -17,7 +17,7 @@ export async function upgradeToProAction() {
   if (cfg === null) finish(PAGE, fail("billing_not_configured"), "");
   const view = await billingView(v.ws);
   // S12a: one live subscription per workspace; a second checkout would start a second subscription.
-  if (!canStartCheckout({ subscription: view.subscription, comped: false }, Date.now())) finish(PAGE, fail("already_subscribed"), "");
+  if (!canStartCheckout({ subscription: view.subscription, comped: false }, Date.now() as Instant)) finish(PAGE, fail("already_subscribed"), "");
   let url: string;
   try {
     url = await createCheckoutUrl(cfg, { workspaceId: v.ws, seats: view.plan.activeMembers, successUrl: `${appUrl()}${PAGE}?ok=${encodeURIComponent("Thanks! Pro activates as soon as Polar confirms the payment.")}` });
